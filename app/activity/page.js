@@ -1,13 +1,42 @@
 import NavBar from "../../components/NavBar";
 import Footer from "../../components/Footer";
+import { getDb } from "../../lib/db";
 
-const recent = [
-  { id: 1, event: "Sale", item: "Bay Creature #3", price: "1.4 ETH", from: "0x...aa", to: "0x...bb" },
-  { id: 2, event: "List", item: "OpenBay Genesis #2", price: "0.2 ETH", from: "0x...cc", to: "Market" },
-  { id: 3, event: "Mint", item: "Cyber Sailor #4", price: "0.75 ETH", from: "0x...dd", to: "0x...ee" },
-];
+export const dynamic = "force-dynamic";
 
-export default function ActivityPage() {
+function formatEth(amount) {
+  const n = typeof amount === "string" ? parseFloat(amount) : amount;
+  if (!Number.isFinite(n)) return "0.0000 ETH";
+  return `${n.toFixed(4)} ETH`;
+}
+
+function toEventLabel(type) {
+  const raw = String(type || "").trim();
+  if (!raw) return "Event";
+  return raw.charAt(0).toUpperCase() + raw.slice(1);
+}
+
+export default async function ActivityPage() {
+  let recent = [];
+  try {
+    const db = await getDb();
+    const txs = await db
+      .collection("walletTransactions")
+      .find({ type: { $in: ["purchase", "sale", "mint", "list"] } })
+      .sort({ createdAt: -1 })
+      .limit(25)
+      .toArray();
+
+    recent = txs.map((tx) => ({
+      id: tx._id.toString(),
+      event: toEventLabel(tx.type),
+      item: tx.description || tx.itemId?.toString?.() || "—",
+      price: formatEth(tx.amount),
+      from: tx.userId || "—",
+      to: tx.counterpartyId || "—",
+    }));
+  } catch {}
+
   return (
     <>
       <NavBar />
@@ -26,15 +55,23 @@ export default function ActivityPage() {
                 </tr>
               </thead>
               <tbody>
-                {recent.map((r) => (
-                  <tr key={r.id} style={{ borderTop: "1px solid var(--border)" }}>
-                    <td style={{ padding: 12 }}>{r.event}</td>
-                    <td style={{ padding: 12 }}>{r.item}</td>
-                    <td style={{ padding: 12 }}>{r.price}</td>
-                    <td style={{ padding: 12 }}>{r.from}</td>
-                    <td style={{ padding: 12 }}>{r.to}</td>
+                {recent.length === 0 ? (
+                  <tr style={{ borderTop: "1px solid var(--border)" }}>
+                    <td style={{ padding: 12, color: "var(--muted)" }} colSpan={5}>
+                      No activity yet
+                    </td>
                   </tr>
-                ))}
+                ) : (
+                  recent.map((r) => (
+                    <tr key={r.id} style={{ borderTop: "1px solid var(--border)" }}>
+                      <td style={{ padding: 12 }}>{r.event}</td>
+                      <td style={{ padding: 12 }}>{r.item}</td>
+                      <td style={{ padding: 12 }}>{r.price}</td>
+                      <td style={{ padding: 12 }}>{r.from}</td>
+                      <td style={{ padding: 12 }}>{r.to}</td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>

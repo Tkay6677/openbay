@@ -3,7 +3,7 @@ export default function Footer() {
     <footer className="footer">
       <div className="container footer-inner">
         <div>
-          © {new Date().getFullYear()} OpenBay • An NFT Marketplace
+          © {new Date().getFullYear()} Cosmos • An NFT Marketplace
         </div>
         <div className="footer-links">
           <a href="#">Privacy</a>

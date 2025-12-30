@@ -21,7 +21,7 @@ export default function MobileDrawer() {
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 12px", borderBottom: "1px solid var(--border)" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <span className="logo-btn"><span className="logo" /></span>
-            <span style={{ fontWeight: 700 }}>OpenBay</span>
+            <span style={{ fontWeight: 700 }}>Cosmos</span>
           </div>
           <button className="icon-btn" aria-label="Close" onClick={() => setOpen(false)}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
@@ -29,7 +29,7 @@ export default function MobileDrawer() {
             </svg>
           </button>
         </div>
-        <Sidebar expanded onToggle={() => setOpen(false)} />
+        <Sidebar expanded onToggle={() => setOpen(false)} onNavigate={() => setOpen(false)} />
       </div>
     </div>
   );

@@ -1,9 +1,33 @@
 import NavBar from "../../components/NavBar";
 import Footer from "../../components/Footer";
 import AssetCard from "../../components/AssetCard";
-import { assets } from "../../lib/sampleData";
+import { getDb } from "../../lib/db";
 
-export default function ExplorePage() {
+export const dynamic = "force-dynamic";
+
+export default async function ExplorePage() {
+  let assets = [];
+  try {
+    const db = await getDb();
+    const featured = await db
+      .collection("featuredAssets")
+      .find({})
+      .sort({ order: 1, updatedAt: -1 })
+      .toArray();
+
+    assets = featured.map((a) => ({
+      tokenId: a.tokenId,
+      contractAddress: a.contractAddress,
+      name: a.name,
+      collection: a.collection || "Unknown Collection",
+      image: a.image || "/placeholder-nft.png",
+      priceEth: a.priceEth ?? 0,
+      owner: a.owner || null,
+      description: a.description || null,
+      traits: a.traits || [],
+    }));
+  } catch {}
+
   return (
     <>
       <NavBar />
@@ -17,11 +41,15 @@ export default function ExplorePage() {
             <button className="chip">Gaming</button>
             <button className="chip">Music</button>
           </div>
-          <div className="grid">
-            {assets.map((a) => (
-              <AssetCard key={`${a.contractAddress}-${a.tokenId}`} asset={a} />
-            ))}
-          </div>
+          {assets.length === 0 ? (
+            <div style={{ color: "var(--muted)" }}>No items yet</div>
+          ) : (
+            <div className="grid">
+              {assets.map((a) => (
+                <AssetCard key={`${a.contractAddress}-${a.tokenId}`} asset={a} />
+              ))}
+            </div>
+          )}
         </div>
       </main>
       <Footer />
