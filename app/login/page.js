@@ -30,6 +30,7 @@ function LoginPageInner() {
 
   const nextAuthError = useMemo(() => searchParams?.get?.("error") || null, [searchParams]);
   const callbackUrl = useMemo(() => searchParams?.get?.("callbackUrl") || "/", [searchParams]);
+  const prefillEmail = useMemo(() => searchParams?.get?.("email") || "", [searchParams]);
 
   // Redirect if already authenticated
   useEffect(() => {
@@ -41,6 +42,10 @@ function LoginPageInner() {
   useEffect(() => {
     if (nextAuthError) setError(nextAuthError);
   }, [nextAuthError]);
+
+  useEffect(() => {
+    if (prefillEmail) setEmail(prefillEmail);
+  }, [prefillEmail]);
 
   const { login } = useAuth();
 

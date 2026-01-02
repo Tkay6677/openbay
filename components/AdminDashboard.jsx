@@ -483,7 +483,7 @@ export default function AdminDashboard() {
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
             <input
               className="btn"
-              style={{ cursor: "text", minWidth: 260 }}
+              style={{ cursor: "text", flex: "1 1 260px", minWidth: 0 }}
               value={usersQuery}
               onChange={(e) => setUsersQuery(e.target.value)}
               placeholder="Search users (email / name / wallet)"
@@ -495,7 +495,7 @@ export default function AdminDashboard() {
 
           <form onSubmit={submitAdjustBalance} style={{ display: "grid", gap: 10 }}>
             <div style={{ fontWeight: 700 }}>Adjust User Balance</div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 170px 200px", gap: 8 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 8 }}>
               <input
                 className="btn"
                 style={{ cursor: "text" }}
@@ -593,7 +593,7 @@ export default function AdminDashboard() {
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
             <input
               className="btn"
-              style={{ cursor: "text", minWidth: 260 }}
+              style={{ cursor: "text", flex: "1 1 260px", minWidth: 0 }}
               value={txQuery}
               onChange={(e) => setTxQuery(e.target.value)}
               placeholder="Search (wallet / txHash / description)"
@@ -772,7 +772,7 @@ export default function AdminDashboard() {
         <div style={{ display: "grid", gap: 16 }}>
           <form onSubmit={submitHeroBanner} style={{ display: "grid", gap: 10 }}>
             <div style={{ fontWeight: 700 }}>Add / Update Hero Banner</div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 8 }}>
               <input
                 className="btn"
                 style={{ cursor: "text" }}
@@ -812,7 +812,7 @@ export default function AdminDashboard() {
               placeholder="Image URL"
               required
             />
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 8 }}>
               <input
                 className="btn"
                 style={{ cursor: "text" }}
@@ -828,7 +828,7 @@ export default function AdminDashboard() {
                 placeholder="Stat 1 value"
               />
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 8 }}>
               <input
                 className="btn"
                 style={{ cursor: "text" }}
@@ -844,7 +844,7 @@ export default function AdminDashboard() {
                 placeholder="Stat 2 value"
               />
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 8 }}>
               <input
                 className="btn"
                 style={{ cursor: "text" }}
@@ -860,7 +860,7 @@ export default function AdminDashboard() {
                 placeholder="Stat 3 value"
               />
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 8 }}>
               <input
                 className="btn"
                 style={{ cursor: "text" }}
@@ -916,7 +916,7 @@ export default function AdminDashboard() {
         <div style={{ display: "grid", gap: 16 }}>
           <form onSubmit={submitFeaturedAsset} style={{ display: "grid", gap: 10 }}>
             <div style={{ fontWeight: 700 }}>Add / Update Featured NFT</div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 8 }}>
               <input
                 className="btn"
                 style={{ cursor: "text" }}
@@ -942,7 +942,7 @@ export default function AdminDashboard() {
               placeholder="Name"
               required
             />
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 8 }}>
               <input
                 className="btn"
                 style={{ cursor: "text" }}
@@ -966,7 +966,7 @@ export default function AdminDashboard() {
               placeholder="Image URL"
               required
             />
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 8 }}>
               <input
                 className="btn"
                 style={{ cursor: "text" }}
@@ -1048,7 +1048,7 @@ export default function AdminDashboard() {
               onChange={(e) => setCollectionForm((s) => ({ ...s, image: e.target.value }))}
               placeholder="Image URL"
             />
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 8 }}>
               <input
                 className="btn"
                 style={{ cursor: "text" }}
@@ -1180,7 +1180,7 @@ export default function AdminDashboard() {
               placeholder="Description *"
               required
             />
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 8 }}>
               <input
                 className="btn"
                 style={{ cursor: "text" }}

@@ -20,6 +20,7 @@ export async function GET(req) {
     return NextResponse.json({
       collections: collections.map((c) => ({
         id: c._id.toString(),
+        contractAddress: c.contractAddress || null,
         name: c.name,
         image: c.image || null,
         floor: c.floor ?? 0,
@@ -40,6 +41,7 @@ export async function POST(req) {
     if (!isAdminSession(session)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
     const body = await req.json().catch(() => ({}));
+    const contractAddress = typeof body.contractAddress === "string" ? body.contractAddress.trim().toLowerCase() : "";
     const name = typeof body.name === "string" ? body.name.trim() : "";
     const image = typeof body.image === "string" ? body.image.trim() : "";
     const floor = body.floor == null ? 0 : Number(body.floor);
@@ -57,6 +59,7 @@ export async function POST(req) {
       { name },
       {
         $set: {
+          ...(contractAddress ? { contractAddress } : {}),
           name,
           image: image || null,
           floor,

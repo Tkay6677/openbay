@@ -24,37 +24,61 @@ export async function POST() {
     if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     if (!isAdminSession(session)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-    const contractAddress = getSeedContractAddress();
+    const defaultContractAddress = getSeedContractAddress();
     const now = new Date();
 
     const seedCollections = [
       {
+        contractAddress: "0x1111111111111111111111111111111111111111",
         name: "Cosmos Genesis",
         image: "https://picsum.photos/seed/cosmos-genesis/80/80",
+        description: "Genesis-era pieces from the Cosmos universe.",
         floor: 0.12,
         delta: 2.4,
         order: 1,
       },
       {
+        contractAddress: "0x2222222222222222222222222222222222222222",
         name: "Bay Creatures",
         image: "https://picsum.photos/seed/bay-creatures/80/80",
+        description: "Creatures emerging from the Bay — rare, wild, and collectible.",
         floor: 1.4,
         delta: 12.6,
         order: 2,
       },
       {
+        contractAddress: "0x3333333333333333333333333333333333333333",
         name: "Cyber Sailors",
         image: "https://picsum.photos/seed/cyber-sailors/80/80",
+        description: "Sailors navigating neon seas of the metaverse.",
         floor: 0.75,
         delta: -1.1,
         order: 3,
+      },
+      {
+        contractAddress: "0x4444444444444444444444444444444444444444",
+        name: "Neon Skulls",
+        image: "https://picsum.photos/seed/neon-skulls/80/80",
+        description: "Electric skull portraits with glowing traits.",
+        floor: 0.35,
+        delta: 4.2,
+        order: 4,
+      },
+      {
+        contractAddress: "0x5555555555555555555555555555555555555555",
+        name: "Pixel Pets",
+        image: "https://picsum.photos/seed/pixel-pets/80/80",
+        description: "Tiny companions rendered in crisp pixel art.",
+        floor: 0.06,
+        delta: -0.8,
+        order: 5,
       },
     ];
 
     const seedAssets = [
       {
         tokenId: "1",
-        contractAddress,
+        contractAddress: seedCollections[0].contractAddress,
         name: "Cosmos Genesis #1",
         collection: "Cosmos Genesis",
         image: "https://picsum.photos/seed/cosmos1/1200/800",
@@ -69,7 +93,7 @@ export async function POST() {
       },
       {
         tokenId: "2",
-        contractAddress,
+        contractAddress: seedCollections[0].contractAddress,
         name: "Cosmos Genesis #2",
         collection: "Cosmos Genesis",
         image: "https://picsum.photos/seed/cosmos2/1200/800",
@@ -84,7 +108,7 @@ export async function POST() {
       },
       {
         tokenId: "3",
-        contractAddress,
+        contractAddress: seedCollections[1].contractAddress,
         name: "Bay Creature #3",
         collection: "Bay Creatures",
         image: "https://picsum.photos/seed/cosmos3/1200/800",
@@ -99,7 +123,7 @@ export async function POST() {
       },
       {
         tokenId: "4",
-        contractAddress,
+        contractAddress: seedCollections[2].contractAddress,
         name: "Cyber Sailor #4",
         collection: "Cyber Sailors",
         image: "https://picsum.photos/seed/cosmos4/1200/800",
@@ -113,6 +137,35 @@ export async function POST() {
         order: 4,
       },
     ];
+
+    const seedItems = [];
+    seedCollections.forEach((c, collectionIndex) => {
+      const base = 1000 * (collectionIndex + 1);
+      for (let i = 1; i <= 48; i += 1) {
+        const tokenIdNum = base + i;
+        const tokenId = String(tokenIdNum);
+        const priceBase = Number(c.floor || 0) || 0.05;
+        const variance = ((i % 11) - 5) * 0.02;
+        const priceEth = Math.max(0, Number((priceBase + variance).toFixed(4)));
+        const listed = i % 6 !== 0;
+
+        seedItems.push({
+          contractAddress: c.contractAddress.toLowerCase(),
+          tokenId,
+          tokenIdNum,
+          name: `${c.name} #${tokenIdNum}`,
+          collection: c.name,
+          image: `https://picsum.photos/seed/${encodeURIComponent(`${c.name}-${tokenIdNum}`)}/600/600`,
+          description: c.description || null,
+          traits: [
+            { type: "Series", value: c.name },
+            { type: "Rarity", value: i % 12 === 0 ? "Legendary" : i % 5 === 0 ? "Rare" : "Common" },
+          ],
+          status: listed ? "listed" : "owned",
+          priceEth: listed ? priceEth : 0,
+        });
+      }
+    });
 
     const seedHeroBanners = [
       {
@@ -167,6 +220,7 @@ export async function POST() {
           filter: { name: c.name },
           update: {
             $set: {
+              contractAddress: c.contractAddress.toLowerCase(),
               name: c.name,
               image: c.image || null,
               floor: c.floor ?? 0,
@@ -175,6 +229,26 @@ export async function POST() {
               updatedAt: now,
             },
             $setOnInsert: { createdAt: now },
+          },
+          upsert: true,
+        },
+      }))
+    );
+
+    const baseCollectionsResult = await db.collection("collections").bulkWrite(
+      seedCollections.map((c) => ({
+        updateOne: {
+          filter: { contractAddress: c.contractAddress.toLowerCase() },
+          update: {
+            $set: {
+              contractAddress: c.contractAddress.toLowerCase(),
+              name: c.name,
+              description: c.description || null,
+              image: c.image || null,
+              creatorId: "seed",
+              updatedAt: now,
+            },
+            $setOnInsert: { createdAt: now, nextTokenId: 1 },
           },
           upsert: true,
         },
@@ -206,6 +280,33 @@ export async function POST() {
       }))
     );
 
+    const itemsResult = await db.collection("items").bulkWrite(
+      seedItems.map((a) => ({
+        updateOne: {
+          filter: { contractAddress: a.contractAddress, tokenId: a.tokenId },
+          update: {
+            $setOnInsert: { createdAt: now },
+            $set: {
+              contractAddress: a.contractAddress,
+              tokenId: a.tokenId,
+              tokenIdNum: a.tokenIdNum,
+              name: a.name,
+              collection: a.collection || null,
+              image: a.image || null,
+              priceEth: a.priceEth ?? 0,
+              owner: a.owner || null,
+              ownerId: a.ownerId || null,
+              description: a.description || null,
+              traits: a.traits || [],
+              status: a.status || "owned",
+              updatedAt: now,
+            },
+          },
+          upsert: true,
+        },
+      }))
+    );
+
     const heroResult = await db.collection("heroBanners").bulkWrite(
       seedHeroBanners.map((b) => ({
         updateOne: {
@@ -229,16 +330,26 @@ export async function POST() {
 
     return NextResponse.json({
       success: true,
-      contractAddress,
+      contractAddress: defaultContractAddress,
       collections: {
         matched: collectionsResult.matchedCount,
         upserted: collectionsResult.upsertedCount,
         modified: collectionsResult.modifiedCount,
       },
+      baseCollections: {
+        matched: baseCollectionsResult.matchedCount,
+        upserted: baseCollectionsResult.upsertedCount,
+        modified: baseCollectionsResult.modifiedCount,
+      },
       assets: {
         matched: assetsResult.matchedCount,
         upserted: assetsResult.upsertedCount,
         modified: assetsResult.modifiedCount,
+      },
+      items: {
+        matched: itemsResult.matchedCount,
+        upserted: itemsResult.upsertedCount,
+        modified: itemsResult.modifiedCount,
       },
       heroBanners: {
         matched: heroResult.matchedCount,

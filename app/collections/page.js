@@ -1,3 +1,4 @@
+import Link from "next/link";
 import NavBar from "../../components/NavBar";
 import Footer from "../../components/Footer";
 import { getDb } from "../../lib/db";
@@ -15,6 +16,7 @@ export default async function CollectionsPage() {
       .toArray();
 
     collections = featured.map((c) => ({
+      contractAddress: c.contractAddress || null,
       name: c.name,
       floor: c.floor ?? 0,
       delta: c.delta ?? 0,
@@ -33,7 +35,13 @@ export default async function CollectionsPage() {
           ) : (
             <div className="grid">
               {collections.map((c) => (
-                <div key={c.name} className="card" style={{ overflow: "hidden" }}>
+                <Link
+                  key={c.name}
+                  href={`/collections/${encodeURIComponent(c.contractAddress || c.name)}`}
+                  className="card"
+                  style={{ overflow: "hidden", textDecoration: "none" }}
+                  aria-label={`${c.name} collection`}
+                >
                   {c.image ? <img src={c.image} alt={c.name} loading="lazy" /> : <div style={{ height: 180, background: "var(--bg-elev)" }} />}
                   <div className="meta">
                     <div className="title">{c.name}</div>
@@ -46,7 +54,7 @@ export default async function CollectionsPage() {
                       </span>
                     </div>
                   </div>
-                </div>
+                </Link>
               ))}
             </div>
           )}

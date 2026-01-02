@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 import { useEffect, useState } from "react";
 
 export default function RightRail() {
@@ -35,7 +36,12 @@ export default function RightRail() {
             <div style={{ padding: 12, color: "var(--muted)" }}>No collections</div>
           ) : (
             collections.slice(0, 10).map((c, i) => (
-              <div className="collection-row" key={`${c.name || "collection"}-${i}`}>
+              <Link
+                href={`/collections/${encodeURIComponent(c.contractAddress || c.name)}`}
+                className="collection-row"
+                style={{ textDecoration: "none", color: "inherit" }}
+                key={`${c.name || "collection"}-${i}`}
+              >
                 {c.image ? <img src={c.image} alt={c.name} /> : <div style={{ width: 40, height: 40, borderRadius: 10, background: "var(--bg-elev)" }} />}
                 <div>
                   <div className="name">{c.name}</div>
@@ -48,7 +54,7 @@ export default function RightRail() {
                     {Number(c.delta || 0).toFixed(2)}%
                   </div>
                 </div>
-              </div>
+              </Link>
             ))
           )}
         </div>

@@ -11,7 +11,7 @@ export default function Sparkline({ data = [] }) {
   }).join(" ");
   return (
     <svg className="sparkline" viewBox={`0 0 ${w} ${h}`}>
-      <polyline points={points} fill="none" stroke="currentColor" strokeWidth="2" />
+      <polyline points={points} fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }

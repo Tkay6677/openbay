@@ -16,6 +16,7 @@ export async function GET() {
     if (featured.length > 0) {
       return NextResponse.json({
         collections: featured.map((c) => ({
+          contractAddress: c.contractAddress || null,
           name: c.name,
           floor: c.floor ?? 0,
           delta: c.delta ?? 0,

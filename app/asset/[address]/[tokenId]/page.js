@@ -5,11 +5,12 @@ import Footer from "../../../../components/Footer";
 import CreateListingModal from "../../../../components/CreateListingModal";
 import { useWalletConnection } from "../../../../lib/hooks/useWallet";
 import { getTimeRemaining, handleTransactionError, truncateAddress } from "../../../../lib/utils";
-import { useEffect, useMemo, useState } from "react";
+import { use, useEffect, useMemo, useState } from "react";
 
 export default function AssetDetail({ params }) {
-  const contractAddress = String(params?.address || "").trim().toLowerCase();
-  const tokenId = String(params?.tokenId || "").trim();
+  const routeParams = use(params);
+  const contractAddress = String(routeParams?.address || "").trim().toLowerCase();
+  const tokenId = String(routeParams?.tokenId || "").trim();
   const { address, isConnected } = useWalletConnection();
 
   const [dbAsset, setDbAsset] = useState(null);
@@ -129,7 +130,7 @@ export default function AssetDetail({ params }) {
             <p style={{ color: "var(--muted)" }}>{dbState.error || "The item you are looking for does not exist."}</p>
           </div>
         ) : (
-          <div className="section" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24 }}>
+          <div className="section" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 24 }}>
             <div>
               <img
                 src={view.image}
@@ -287,7 +288,7 @@ export default function AssetDetail({ params }) {
                           <>
                             <input
                               className="btn"
-                              style={{ cursor: "text", flex: 1, minWidth: 160 }}
+                              style={{ cursor: "text", flex: "1 1 160px", minWidth: 0 }}
                               value={offerForm.amount}
                               onChange={(e) => setOfferForm((s) => ({ ...s, amount: e.target.value }))}
                               placeholder="Offer (ETH)"

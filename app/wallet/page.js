@@ -192,7 +192,7 @@ export default function WalletPage() {
                       onClick={() => setWalletProvider("metamask")}
                       disabled={isConnecting}
                       type="button"
-                      style={{ flex: 1, minWidth: 120 }}
+                      style={{ flex: "1 1 120px", minWidth: 0 }}
                     >
                       MetaMask
                     </button>
@@ -201,7 +201,7 @@ export default function WalletPage() {
                       onClick={() => setWalletProvider("walletconnect")}
                       disabled={isConnecting}
                       type="button"
-                      style={{ flex: 1, minWidth: 120 }}
+                      style={{ flex: "1 1 120px", minWidth: 0 }}
                     >
                       WalletConnect
                     </button>
@@ -210,7 +210,7 @@ export default function WalletPage() {
                       onClick={() => setWalletProvider("coinbase")}
                       disabled={isConnecting}
                       type="button"
-                      style={{ flex: 1, minWidth: 120 }}
+                      style={{ flex: "1 1 120px", minWidth: 0 }}
                     >
                       Coinbase
                     </button>
@@ -257,7 +257,7 @@ export default function WalletPage() {
                     Signing is free and does not send a transaction.
                   </div>
                 </div>
-                <div className="card" style={{ padding: 12, minWidth: 260 }}>
+                <div className="card" style={{ padding: 12, flex: "1 1 260px", minWidth: 0 }}>
                   <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 6 }}>Connected wallet</div>
                   <div style={{ fontFamily: "monospace", fontSize: 13, wordBreak: "break-all" }}>{address}</div>
                 </div>
