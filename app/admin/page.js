@@ -9,7 +9,7 @@ import { isAdminSession } from "../../lib/admin";
 export default async function AdminPage() {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
-    redirect("/login?callbackUrl=%2Fadmin");
+    redirect("/?login=1&callbackUrl=%2Fadmin");
   }
   if (!isAdminSession(session)) {
     notFound();

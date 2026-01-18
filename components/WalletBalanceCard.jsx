@@ -1,11 +1,12 @@
 "use client";
 import { useVirtualWallet } from "../lib/hooks/useVirtualWallet";
 import { useAuth } from "../lib/hooks/useAuth";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 export default function WalletBalanceCard() {
   const { isAuthenticated } = useAuth();
   const { balance, isLoading, error, refetch } = useVirtualWallet();
+  const router = useRouter();
 
   if (!isAuthenticated) {
     return (
@@ -13,9 +14,17 @@ export default function WalletBalanceCard() {
         <div style={{ textAlign: "center", color: "var(--muted)", marginBottom: 16 }}>
           Sign in to view your virtual wallet balance
         </div>
-        <Link href="/login" className="btn primary" style={{ width: "100%" }}>
+        <button
+          className="btn primary"
+          type="button"
+          style={{ width: "100%" }}
+          onClick={() => {
+            const callbackUrl = `${window.location.pathname}${window.location.search || ""}`;
+            router.push(`/?login=1&callbackUrl=${encodeURIComponent(callbackUrl)}`);
+          }}
+        >
           Sign In
-        </Link>
+        </button>
       </div>
     );
   }

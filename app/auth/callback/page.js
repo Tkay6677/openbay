@@ -33,7 +33,7 @@ function AuthCallbackPageInner() {
       } else {
         // No error but not authenticated, redirect to login
         setTimeout(() => {
-          router.replace("/login");
+          router.replace(`/?login=1&callbackUrl=${encodeURIComponent(callbackUrl)}`);
         }, 2000);
       }
     }
@@ -67,7 +67,7 @@ function AuthCallbackPageInner() {
               ? "Redirecting..."
               : error
                 ? error
-                : "Redirecting to login..."}
+                : "Redirecting to sign-in..."}
         </div>
 
         {error ? (

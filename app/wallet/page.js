@@ -11,6 +11,7 @@ import { useWalletConnection } from "../../lib/hooks/useWallet";
 import { useSigner } from "@thirdweb-dev/react";
 import { truncateAddress } from "../../lib/utils";
 import Link from "next/link";
+import { AnimatePresence, motion } from "framer-motion";
 
 export default function WalletPage() {
   const [activeTab, setActiveTab] = useState("balance");
@@ -127,282 +128,461 @@ export default function WalletPage() {
     }
   };
 
+  const pageVariants = {
+    hidden: { opacity: 0, y: 14 },
+    show: { opacity: 1, y: 0, transition: { duration: 0.35, ease: [0.22, 1, 0.36, 1] } },
+  };
+
+  const contentVariants = {
+    hidden: { opacity: 0, y: 10 },
+    show: { opacity: 1, y: 0, transition: { duration: 0.22, ease: [0.22, 1, 0.36, 1] } },
+    exit: { opacity: 0, y: -8, transition: { duration: 0.16, ease: [0.22, 1, 0.36, 1] } },
+  };
+
+  const tabButtonMotion = {
+    whileHover: { y: -1, filter: "brightness(1.04)" },
+    whileTap: { scale: 0.98 },
+  };
+
+  const renderTab = () => {
+    if (activeTab === "balance") {
+      return (
+        <div style={{ display: "grid", gap: 14 }}>
+          <WalletBalanceCard />
+        </div>
+      );
+    }
+
+    if (activeTab === "deposit") {
+      return (
+        <div style={{ display: "grid", gap: 14, maxWidth: 740 }}>
+          <div className="card" style={{ padding: 14 }}>
+            <div style={{ fontWeight: 700, marginBottom: 4 }}>Deposits require admin approval</div>
+            <div style={{ color: "var(--muted)", fontSize: 13 }}>
+              After your on-chain transfer confirms, it will appear as pending until an admin approves it.
+            </div>
+          </div>
+          <DepositForm onDepositSuccess={handleDepositSuccess} />
+        </div>
+      );
+    }
+
+    if (activeTab === "withdraw") {
+      return (
+        <div style={{ maxWidth: 740 }}>
+          <WithdrawForm onWithdrawSuccess={handleWithdrawSuccess} />
+        </div>
+      );
+    }
+
+    if (activeTab === "transactions") {
+      return (
+        <div style={{ maxWidth: 980 }}>
+          <TransactionList />
+        </div>
+      );
+    }
+
+    if (activeTab === "nfts") {
+      return (
+        <div style={{ maxWidth: 980 }}>
+          {virtualAssetsState.isLoading ? (
+            <div className="card" style={{ padding: 24, color: "var(--muted)" }}>
+              Loading your NFTs...
+            </div>
+          ) : virtualAssetsState.error ? (
+            <div className="card" style={{ padding: 24, borderColor: "var(--red)" }}>
+              <div style={{ color: "var(--red)" }}>{virtualAssetsState.error}</div>
+            </div>
+          ) : virtualAssets.length === 0 ? (
+            <div className="card" style={{ padding: 24, color: "var(--muted)" }}>
+              No NFTs in your virtual wallet yet.{" "}
+              <Link href="/mint" style={{ color: "var(--primary)" }}>
+                Mint one now!
+              </Link>
+            </div>
+          ) : (
+            <div className="grid">
+              {virtualAssets.map((a, idx) => (
+                <Link
+                  key={`${a.contractAddress}-${a.tokenId}`}
+                  href={`/asset/${a.contractAddress}/${a.tokenId}`}
+                  className="card"
+                  style={{ textDecoration: "none" }}
+                >
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.22, delay: Math.min(0.18, idx * 0.02), ease: [0.22, 1, 0.36, 1] }}
+                  >
+                    <img
+                      src={a.image || "/placeholder-nft.png"}
+                      alt={a.name || `NFT #${a.tokenId}`}
+                      style={{ width: "100%", height: 200, objectFit: "cover" }}
+                      onError={(e) => {
+                        e.target.src = "https://via.placeholder.com/400x400?text=NFT";
+                      }}
+                    />
+                    <div className="meta">
+                      <div className="title">{a.name || `NFT #${a.tokenId}`}</div>
+                      <div className="sub">{a.collection || "Cosmos Virtual Collection"}</div>
+                    </div>
+                  </motion.div>
+                </Link>
+              ))}
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    return null;
+  };
+
   return (
     <ProtectedRoute>
       <NavBar />
       <main className="container">
-        <div className="section">
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "flex-start",
-              gap: 12,
-              flexWrap: "wrap",
-              marginBottom: 20,
-              maxWidth: 980,
-            }}
-          >
-            <div>
-              <h1 style={{ margin: 0 }}>My Wallet</h1>
-              <div style={{ color: "var(--muted)", marginTop: 6 }}>
-                Virtual balance, deposits, withdrawals, and transaction history.
-              </div>
-            </div>
-
-            {isConnected && address ? (
-              <div
-                className="card"
+        <motion.div className="section" initial="hidden" animate="show" variants={pageVariants}>
+          <div style={{ position: "relative", maxWidth: 980 }}>
+            <motion.div
+              aria-hidden
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.6 }}
+              style={{ position: "absolute", inset: -90, pointerEvents: "none", filter: "blur(26px)", opacity: 0.85 }}
+            >
+              <motion.div
+                aria-hidden
+                animate={{ x: [0, 24, 0], y: [0, -18, 0] }}
+                transition={{ duration: 10, repeat: Infinity, ease: "easeInOut" }}
                 style={{
-                  padding: 12,
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 8,
-                  flexWrap: "wrap",
+                  position: "absolute",
+                  top: 40,
+                  left: 40,
+                  width: 260,
+                  height: 260,
+                  borderRadius: 999,
+                  background: "radial-gradient(circle at 35% 30%, rgba(45, 212, 191, 0.55), transparent 65%)",
                 }}
-              >
-                <div style={{ fontSize: 12, color: "var(--muted)" }}>Connected</div>
-                <div style={{ fontFamily: "monospace", fontSize: 13 }}>{truncateAddress(address)}</div>
-                <button className="btn" type="button" onClick={() => copyText(address, "address")} style={{ padding: "4px 8px", fontSize: 12 }}>
-                  {copied.address ? "Copied" : "Copy"}
-                </button>
-                <button className="btn" type="button" onClick={disconnectWallet} style={{ padding: "4px 8px", fontSize: 12 }}>
-                  Disconnect
-                </button>
+              />
+              <motion.div
+                aria-hidden
+                animate={{ x: [0, -22, 0], y: [0, 16, 0] }}
+                transition={{ duration: 12, repeat: Infinity, ease: "easeInOut" }}
+                style={{
+                  position: "absolute",
+                  top: 10,
+                  right: 30,
+                  width: 300,
+                  height: 300,
+                  borderRadius: 999,
+                  background: "radial-gradient(circle at 30% 35%, rgba(124, 58, 237, 0.48), transparent 62%)",
+                }}
+              />
+            </motion.div>
+
+            <div
+              style={{
+                position: "relative",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "flex-start",
+                gap: 12,
+                flexWrap: "wrap",
+                marginBottom: 20,
+              }}
+            >
+              <div>
+                <h1 style={{ margin: 0 }}>My Wallet</h1>
+                <div style={{ color: "var(--muted)", marginTop: 6 }}>
+                  Virtual balance, deposits, withdrawals, and transaction history.
+                </div>
               </div>
-            ) : null}
+
+              <AnimatePresence>
+                {isConnected && address ? (
+                  <motion.div
+                    key="connected"
+                    initial={{ opacity: 0, y: 10, scale: 0.98 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 6, scale: 0.98 }}
+                    transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+                    className="card"
+                    style={{
+                      padding: 12,
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
+                      flexWrap: "wrap",
+                      background:
+                        "radial-gradient(900px 220px at 0% 0%, rgba(45, 212, 191, 0.10), transparent 60%), var(--bg-elev)",
+                    }}
+                  >
+                    <div style={{ fontSize: 12, color: "var(--muted)" }}>Connected</div>
+                    <div style={{ fontFamily: "monospace", fontSize: 13 }}>{truncateAddress(address)}</div>
+                    <button className="btn" type="button" onClick={() => copyText(address, "address")} style={{ padding: "4px 8px", fontSize: 12 }}>
+                      {copied.address ? "Copied" : "Copy"}
+                    </button>
+                    <button className="btn" type="button" onClick={disconnectWallet} style={{ padding: "4px 8px", fontSize: 12 }}>
+                      Disconnect
+                    </button>
+                  </motion.div>
+                ) : null}
+              </AnimatePresence>
+            </div>
           </div>
 
-          {!isConnected ? (
-            <div className="card" style={{ padding: 24, maxWidth: 980 }}>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 16, alignItems: "start" }}>
-                <div>
-                  <div style={{ fontWeight: 700, fontSize: 18, marginBottom: 8 }}>Connect your wallet</div>
-                  <div style={{ color: "var(--muted)", marginBottom: 10 }}>
-                    Step 1 of 2: connect a wallet to use deposit and withdrawal features.
+          <AnimatePresence mode="wait">
+            {!isConnected ? (
+              <motion.div
+                key="connect"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 6 }}
+                transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+                className="card"
+                style={{
+                  padding: 24,
+                  maxWidth: 980,
+                  background: "radial-gradient(900px 220px at 0% 0%, rgba(124, 58, 237, 0.12), transparent 60%), var(--bg-elev)",
+                }}
+              >
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 16, alignItems: "start" }}>
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: 18, marginBottom: 8 }}>Connect your wallet</div>
+                    <div style={{ color: "var(--muted)", marginBottom: 10 }}>
+                      Step 1 of 2: connect a wallet to use deposit and withdrawal features.
+                    </div>
+                    <div style={{ fontSize: 13, color: "var(--muted)" }}>
+                      Your account login stays email/Google. This connection is only for wallet actions.
+                    </div>
                   </div>
-                  <div style={{ fontSize: 13, color: "var(--muted)" }}>
-                    Your account login stays email/Google. This connection is only for wallet actions.
+                  <div>
+                    <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
+                      <motion.button
+                        {...tabButtonMotion}
+                        className={walletProvider === "metamask" ? "btn primary" : "btn"}
+                        onClick={() => setWalletProvider("metamask")}
+                        disabled={isConnecting}
+                        type="button"
+                        style={{ flex: "1 1 120px", minWidth: 0 }}
+                      >
+                        MetaMask
+                      </motion.button>
+                      <motion.button
+                        {...tabButtonMotion}
+                        className={walletProvider === "walletconnect" ? "btn primary" : "btn"}
+                        onClick={() => setWalletProvider("walletconnect")}
+                        disabled={isConnecting}
+                        type="button"
+                        style={{ flex: "1 1 120px", minWidth: 0 }}
+                      >
+                        WalletConnect
+                      </motion.button>
+                      <motion.button
+                        {...tabButtonMotion}
+                        className={walletProvider === "coinbase" ? "btn primary" : "btn"}
+                        onClick={() => setWalletProvider("coinbase")}
+                        disabled={isConnecting}
+                        type="button"
+                        style={{ flex: "1 1 120px", minWidth: 0 }}
+                      >
+                        Coinbase
+                      </motion.button>
+                    </div>
+                    <motion.button
+                      {...tabButtonMotion}
+                      className="btn primary"
+                      onClick={() => connectWallet(walletProvider)}
+                      disabled={isConnecting}
+                      style={{ width: "100%" }}
+                      type="button"
+                    >
+                      {isConnecting ? "Connecting..." : "Connect Wallet"}
+                    </motion.button>
                   </div>
                 </div>
-                <div>
-                  <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
-                    <button
-                      className={walletProvider === "metamask" ? "btn primary" : "btn"}
-                      onClick={() => setWalletProvider("metamask")}
-                      disabled={isConnecting}
-                      type="button"
-                      style={{ flex: "1 1 120px", minWidth: 0 }}
-                    >
-                      MetaMask
-                    </button>
-                    <button
-                      className={walletProvider === "walletconnect" ? "btn primary" : "btn"}
-                      onClick={() => setWalletProvider("walletconnect")}
-                      disabled={isConnecting}
-                      type="button"
-                      style={{ flex: "1 1 120px", minWidth: 0 }}
-                    >
-                      WalletConnect
-                    </button>
-                    <button
-                      className={walletProvider === "coinbase" ? "btn primary" : "btn"}
-                      onClick={() => setWalletProvider("coinbase")}
-                      disabled={isConnecting}
-                      type="button"
-                      style={{ flex: "1 1 120px", minWidth: 0 }}
-                    >
-                      Coinbase
-                    </button>
+              </motion.div>
+            ) : profileState.isLoading ? (
+              <motion.div
+                key="profile-loading"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 6 }}
+                transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+                className="card"
+                style={{ padding: 24, maxWidth: 980 }}
+              >
+                <motion.div
+                  initial={{ opacity: 0.5 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ repeat: Infinity, repeatType: "reverse", duration: 0.8 }}
+                  style={{ height: 10, background: "rgba(45, 212, 191, 0.35)", borderRadius: 999 }}
+                />
+                <div style={{ marginTop: 10, textAlign: "center", color: "var(--muted)" }}>Loading wallet setup…</div>
+              </motion.div>
+            ) : profileState.error ? (
+              <motion.div
+                key="profile-error"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 6 }}
+                transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+                className="card"
+                style={{ padding: 24, borderColor: "var(--red)", maxWidth: 980 }}
+              >
+                <div style={{ color: "var(--red)" }}>{profileState.error}</div>
+              </motion.div>
+            ) : profileState.walletAddress && profileState.walletAddress.toLowerCase() !== address?.toLowerCase?.() ? (
+              <motion.div
+                key="wrong-wallet"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 6 }}
+                transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+                className="card"
+                style={{ padding: 24, borderColor: "var(--yellow)", maxWidth: 980 }}
+              >
+                <div style={{ fontWeight: 700, fontSize: 18, marginBottom: 8 }}>Wrong wallet connected</div>
+                <div style={{ color: "var(--muted)", marginBottom: 16 }}>
+                  This account is linked to {truncateAddress(profileState.walletAddress)}. Switch your wallet to continue.
+                </div>
+                <motion.button {...tabButtonMotion} className="btn" onClick={disconnectWallet} type="button">
+                  Disconnect Wallet
+                </motion.button>
+              </motion.div>
+            ) : !profileState.walletAddress ? (
+              <motion.div
+                key="link-wallet"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 6 }}
+                transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+                className="card"
+                style={{
+                  padding: 24,
+                  maxWidth: 980,
+                  background: "radial-gradient(900px 220px at 0% 0%, rgba(45, 212, 191, 0.10), transparent 60%), var(--bg-elev)",
+                }}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "start" }}>
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: 18, marginBottom: 8 }}>Link your wallet</div>
+                    <div style={{ color: "var(--muted)", marginBottom: 10 }}>
+                      Step 2 of 2: sign a message to link {truncateAddress(address)} to your account.
+                    </div>
+                    <div style={{ fontSize: 13, color: "var(--muted)" }}>Signing is free and does not send a transaction.</div>
                   </div>
-                  <button
-                    className="btn primary"
-                    onClick={() => connectWallet(walletProvider)}
-                    disabled={isConnecting}
-                    style={{ width: "100%" }}
-                    type="button"
+                  <div
+                    className="card"
+                    style={{
+                      padding: 12,
+                      flex: "1 1 260px",
+                      minWidth: 0,
+                      background: "rgba(255, 255, 255, 0.03)",
+                    }}
                   >
-                    {isConnecting ? "Connecting..." : "Connect Wallet"}
-                  </button>
-                </div>
-              </div>
-            </div>
-          ) : profileState.isLoading ? (
-            <div className="card" style={{ padding: 24, maxWidth: 980 }}>
-              <div style={{ textAlign: "center", color: "var(--muted)" }}>Loading wallet setup…</div>
-            </div>
-          ) : profileState.error ? (
-            <div className="card" style={{ padding: 24, borderColor: "var(--red)", maxWidth: 980 }}>
-              <div style={{ color: "var(--red)" }}>{profileState.error}</div>
-            </div>
-          ) : profileState.walletAddress && profileState.walletAddress.toLowerCase() !== address?.toLowerCase?.() ? (
-            <div className="card" style={{ padding: 24, borderColor: "var(--yellow)", maxWidth: 980 }}>
-              <div style={{ fontWeight: 700, fontSize: 18, marginBottom: 8 }}>Wrong wallet connected</div>
-              <div style={{ color: "var(--muted)", marginBottom: 16 }}>
-                This account is linked to {truncateAddress(profileState.walletAddress)}. Switch your wallet to continue.
-              </div>
-              <button className="btn" onClick={disconnectWallet} type="button">
-                Disconnect Wallet
-              </button>
-            </div>
-          ) : !profileState.walletAddress ? (
-            <div className="card" style={{ padding: 24, maxWidth: 980 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "start" }}>
-                <div>
-                  <div style={{ fontWeight: 700, fontSize: 18, marginBottom: 8 }}>Link your wallet</div>
-                  <div style={{ color: "var(--muted)", marginBottom: 10 }}>
-                    Step 2 of 2: sign a message to link {truncateAddress(address)} to your account.
-                  </div>
-                  <div style={{ fontSize: 13, color: "var(--muted)" }}>
-                    Signing is free and does not send a transaction.
+                    <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 6 }}>Connected wallet</div>
+                    <div style={{ fontFamily: "monospace", fontSize: 13, wordBreak: "break-all" }}>{address}</div>
                   </div>
                 </div>
-                <div className="card" style={{ padding: 12, flex: "1 1 260px", minWidth: 0 }}>
-                  <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 6 }}>Connected wallet</div>
-                  <div style={{ fontFamily: "monospace", fontSize: 13, wordBreak: "break-all" }}>{address}</div>
-                </div>
-              </div>
-              {linkStatus.error ? <div style={{ color: "var(--red)", marginBottom: 12 }}>{linkStatus.error}</div> : null}
-              <button className="btn primary" onClick={linkWallet} disabled={linkStatus.isLoading} style={{ width: "100%", marginTop: 14 }} type="button">
-                {linkStatus.isLoading ? "Linking..." : "Link Wallet"}
-              </button>
-            </div>
-          ) : (
-            <div>
-              <div style={{ maxWidth: 980 }}>
-                <div
-                  className="card"
-                  style={{
-                    padding: 12,
-                    marginBottom: 14,
-                    display: "flex",
-                    justifyContent: "space-between",
-                    gap: 12,
-                    flexWrap: "wrap",
-                    alignItems: "center",
-                  }}
-                >
-                  <div style={{ fontSize: 13, color: "var(--muted)" }}>
-                    Linked wallet: <span style={{ fontFamily: "monospace", color: "var(--text)" }}>{truncateAddress(profileState.walletAddress)}</span>
-                  </div>
-                  <button className="btn" type="button" onClick={() => window.dispatchEvent(new Event("cosmos:wallet:refetch"))} style={{ padding: "4px 8px", fontSize: 12 }}>
-                    Refresh
-                  </button>
-                </div>
-
-                <div style={{ display: "flex", gap: 8, marginBottom: 18, flexWrap: "wrap" }}>
-                <button
-                  className={activeTab === "balance" ? "btn primary" : "btn"}
-                  onClick={() => setActiveTab("balance")}
+                {linkStatus.error ? <div style={{ color: "var(--red)", marginBottom: 12 }}>{linkStatus.error}</div> : null}
+                <motion.button
+                  {...tabButtonMotion}
+                  className="btn primary"
+                  onClick={linkWallet}
+                  disabled={linkStatus.isLoading}
+                  style={{ width: "100%", marginTop: 14 }}
                   type="button"
                 >
-                  Balance
-                </button>
-                <button
-                  className={activeTab === "deposit" ? "btn primary" : "btn"}
-                  onClick={() => setActiveTab("deposit")}
-                  type="button"
-                >
-                  Deposit
-                </button>
-                <button
-                  className={activeTab === "withdraw" ? "btn primary" : "btn"}
-                  onClick={() => setActiveTab("withdraw")}
-                  type="button"
-                >
-                  Withdraw
-                </button>
-                <button
-                  className={activeTab === "transactions" ? "btn primary" : "btn"}
-                  onClick={() => setActiveTab("transactions")}
-                  type="button"
-                >
-                  Transactions
-                </button>
-                <button
-                  className={activeTab === "nfts" ? "btn primary" : "btn"}
-                  onClick={() => setActiveTab("nfts")}
-                  type="button"
-                >
-                  NFTs
-                </button>
-              </div>
-
-              {activeTab === "balance" && (
-                <div style={{ display: "grid", gap: 14 }}>
-                  <WalletBalanceCard />
-                </div>
-              )}
-
-              {activeTab === "deposit" && (
-                <div style={{ display: "grid", gap: 14, maxWidth: 740 }}>
-                  <div className="card" style={{ padding: 14 }}>
-                    <div style={{ fontWeight: 700, marginBottom: 4 }}>Deposits require admin approval</div>
-                    <div style={{ color: "var(--muted)", fontSize: 13 }}>
-                      After your on-chain transfer confirms, it will appear as pending until an admin approves it.
-                    </div>
-                  </div>
-                  <DepositForm onDepositSuccess={handleDepositSuccess} />
-                </div>
-              )}
-
-              {activeTab === "withdraw" && (
-                <div style={{ maxWidth: 740 }}>
-                  <WithdrawForm onWithdrawSuccess={handleWithdrawSuccess} />
-                </div>
-              )}
-
-              {activeTab === "transactions" && (
+                  {linkStatus.isLoading ? "Linking..." : "Link Wallet"}
+                </motion.button>
+              </motion.div>
+            ) : (
+              <motion.div
+                key="ready"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 6 }}
+                transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+              >
                 <div style={{ maxWidth: 980 }}>
-                  <TransactionList />
-                </div>
-              )}
+                  <div
+                    className="card"
+                    style={{
+                      padding: 12,
+                      marginBottom: 14,
+                      display: "flex",
+                      justifyContent: "space-between",
+                      gap: 12,
+                      flexWrap: "wrap",
+                      alignItems: "center",
+                      background: "rgba(255, 255, 255, 0.03)",
+                    }}
+                  >
+                    <div style={{ fontSize: 13, color: "var(--muted)" }}>
+                      Linked wallet: <span style={{ fontFamily: "monospace", color: "var(--text)" }}>{truncateAddress(profileState.walletAddress)}</span>
+                    </div>
+                    <motion.button
+                      {...tabButtonMotion}
+                      className="btn"
+                      type="button"
+                      onClick={() => window.dispatchEvent(new Event("cosmos:wallet:refetch"))}
+                      style={{ padding: "4px 8px", fontSize: 12 }}
+                    >
+                      Refresh
+                    </motion.button>
+                  </div>
 
-              {activeTab === "nfts" && (
-                <div style={{ maxWidth: 980 }}>
-                  {virtualAssetsState.isLoading ? (
-                    <div className="card" style={{ padding: 24, color: "var(--muted)" }}>
-                      Loading your NFTs...
-                    </div>
-                  ) : virtualAssetsState.error ? (
-                    <div className="card" style={{ padding: 24, borderColor: "var(--red)" }}>
-                      <div style={{ color: "var(--red)" }}>{virtualAssetsState.error}</div>
-                    </div>
-                  ) : virtualAssets.length === 0 ? (
-                    <div className="card" style={{ padding: 24, color: "var(--muted)" }}>
-                      No NFTs in your virtual wallet yet. <Link href="/mint" style={{ color: "var(--primary)" }}>Mint one now!</Link>
-                    </div>
-                  ) : (
-                    <div className="grid">
-                      {virtualAssets.map((a) => (
-                        <Link
-                          key={`${a.contractAddress}-${a.tokenId}`}
-                          href={`/asset/${a.contractAddress}/${a.tokenId}`}
-                          className="card"
-                          style={{ textDecoration: "none" }}
-                        >
-                          <img
-                            src={a.image || "/placeholder-nft.png"}
-                            alt={a.name || `NFT #${a.tokenId}`}
-                            style={{ width: "100%", height: 200, objectFit: "cover" }}
-                            onError={(e) => {
-                              e.target.src = "https://via.placeholder.com/400x400?text=NFT";
-                            }}
-                          />
-                          <div className="meta">
-                            <div className="title">{a.name || `NFT #${a.tokenId}`}</div>
-                            <div className="sub">{a.collection || "Cosmos Virtual Collection"}</div>
-                          </div>
-                        </Link>
-                      ))}
-                    </div>
-                  )}
+                  <div style={{ display: "flex", gap: 8, marginBottom: 18, flexWrap: "wrap" }}>
+                    <motion.button
+                      {...tabButtonMotion}
+                      className={activeTab === "balance" ? "btn primary" : "btn"}
+                      onClick={() => setActiveTab("balance")}
+                      type="button"
+                    >
+                      Balance
+                    </motion.button>
+                    <motion.button
+                      {...tabButtonMotion}
+                      className={activeTab === "deposit" ? "btn primary" : "btn"}
+                      onClick={() => setActiveTab("deposit")}
+                      type="button"
+                    >
+                      Deposit
+                    </motion.button>
+                    <motion.button
+                      {...tabButtonMotion}
+                      className={activeTab === "withdraw" ? "btn primary" : "btn"}
+                      onClick={() => setActiveTab("withdraw")}
+                      type="button"
+                    >
+                      Withdraw
+                    </motion.button>
+                    <motion.button
+                      {...tabButtonMotion}
+                      className={activeTab === "transactions" ? "btn primary" : "btn"}
+                      onClick={() => setActiveTab("transactions")}
+                      type="button"
+                    >
+                      Transactions
+                    </motion.button>
+                    <motion.button {...tabButtonMotion} className={activeTab === "nfts" ? "btn primary" : "btn"} onClick={() => setActiveTab("nfts")} type="button">
+                      NFTs
+                    </motion.button>
+                  </div>
+
+                  <AnimatePresence mode="wait">
+                    <motion.div key={activeTab} variants={contentVariants} initial="hidden" animate="show" exit="exit">
+                      {renderTab()}
+                    </motion.div>
+                  </AnimatePresence>
                 </div>
-              )}
-            </div>
-            </div>
-          )}
-        </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </motion.div>
       </main>
       <Footer />
     </ProtectedRoute>

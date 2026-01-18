@@ -36,11 +36,26 @@ async function verifyDepositOnChain({ txHash, platformWalletAddress }) {
   const amountETH = parseFloat(ethers.utils.formatEther(tx.value));
   if (!Number.isFinite(amountETH) || amountETH <= 0) throw new Error("Invalid deposit amount");
 
+  const currentBlock = await provider.getBlockNumber();
+  const confirmations =
+    typeof receipt.blockNumber === "number"
+      ? Math.max(0, currentBlock - receipt.blockNumber + 1)
+      : null;
+  const requiredConfirmations = Math.max(
+    0,
+    parseInt(process.env.DEPOSIT_CONFIRMATIONS || "12", 10)
+  );
+  if (requiredConfirmations > 0 && (confirmations ?? 0) < requiredConfirmations) {
+    throw new Error(
+      `Transaction needs more confirmations. Current: ${confirmations ?? 0}, Required: ${requiredConfirmations}`
+    );
+  }
+
   return {
     from: tx.from?.toLowerCase?.() || null,
     amount: amountETH,
     blockNumber: receipt.blockNumber,
-    confirmations: receipt.confirmations ?? null,
+    confirmations,
     gasUsed: receipt.gasUsed?.toString?.() || null,
   };
 }
@@ -167,9 +182,24 @@ export async function PATCH(req) {
       return NextResponse.json({ error: "Deposit is missing txHash" }, { status: 400 });
     }
 
+    const normalizedTxHash = txDoc.txHash.toLowerCase();
+    const duplicateCompleted = await db.collection("walletTransactions").findOne({
+      _id: { $ne: _id },
+      type: "deposit",
+      status: "completed",
+      txHash: { $in: [txDoc.txHash, normalizedTxHash] },
+    });
+    if (duplicateCompleted) {
+      await db.collection("walletTransactions").updateOne(
+        { _id },
+        { $set: { status: "failed", failedAt: new Date(), errorMessage: "Duplicate txHash", updatedAt: new Date() } }
+      );
+      return NextResponse.json({ error: "Deposit txHash already approved" }, { status: 409 });
+    }
+
     const platformWallet = await getOrCreatePlatformWallet();
     const verification = await verifyDepositOnChain({
-      txHash: txDoc.txHash,
+      txHash: normalizedTxHash,
       platformWalletAddress: platformWallet.address,
     });
 
@@ -218,6 +248,7 @@ export async function PATCH(req) {
           blockNumber: txDoc.blockNumber ?? verification.blockNumber,
           confirmations: txDoc.confirmations ?? verification.confirmations,
           gasUsed: txDoc.gasUsed ?? verification.gasUsed,
+          txHash: normalizedTxHash,
           completedAt: new Date(),
           updatedAt: new Date(),
           description: `Deposited ${amount} ETH`,

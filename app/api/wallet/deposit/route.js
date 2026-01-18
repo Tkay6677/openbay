@@ -31,11 +31,17 @@ async function verifyDeposit({ txHash, platformWalletAddress }) {
   const amountETH = parseFloat(ethers.utils.formatEther(tx.value));
   if (!Number.isFinite(amountETH) || amountETH <= 0) throw new Error("Invalid deposit amount");
 
+  const currentBlock = await provider.getBlockNumber();
+  const confirmations =
+    typeof receipt.blockNumber === "number"
+      ? Math.max(0, currentBlock - receipt.blockNumber + 1)
+      : null;
+
   return {
     from: tx.from?.toLowerCase?.() || null,
     amount: amountETH,
     blockNumber: receipt.blockNumber,
-    confirmations: receipt.confirmations ?? null,
+    confirmations,
     gasUsed: receipt.gasUsed?.toString?.() || null,
   };
 }
@@ -48,9 +54,27 @@ export async function POST(req) {
     }
 
     const body = await req.json().catch(() => ({}));
-    const txHash = typeof body?.txHash === "string" ? body.txHash.trim() : "";
+    const txHashRaw = typeof body?.txHash === "string" ? body.txHash.trim() : "";
+    const txHash = txHashRaw ? txHashRaw.toLowerCase() : "";
     if (!txHash) {
       return NextResponse.json({ error: "txHash is required" }, { status: 400 });
+    }
+
+    const db = await getDb();
+    const existingTx = await db.collection("walletTransactions").findOne({
+      txHash: { $in: [txHashRaw, txHash] },
+    });
+    if (existingTx) {
+      if (existingTx.type !== "deposit") {
+        return NextResponse.json({ error: "Transaction hash already used" }, { status: 409 });
+      }
+      return NextResponse.json({
+        success: true,
+        transactionId: existingTx._id.toString(),
+        status: existingTx.status || null,
+        amount: existingTx.amount,
+        txHash: existingTx.txHash || txHash,
+      });
     }
 
     const platformWallet = await getOrCreatePlatformWallet();
@@ -63,7 +87,6 @@ export async function POST(req) {
       return NextResponse.json({ error: "Invalid sender address" }, { status: 400 });
     }
 
-    const db = await getDb();
     const user = await getUserById(session.user.id);
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });

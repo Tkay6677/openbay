@@ -9,7 +9,6 @@ import HeroCarousel from "../components/HeroCarousel";
 import TokenCarousel from "../components/TokenCarousel";
 import TokenCard from "../components/TokenCard";
 import MobileCollections from "../components/MobileCollections";
-import MobileDrawer from "../components/MobileDrawer";
 import Sparkline from "../components/Sparkline";
 import { useEffect, useState } from "react";
 import trendingData from "../trending.json";
@@ -305,7 +304,6 @@ export default function HomePage() {
           <RightRail />
         </div>
       </div>
-      <MobileDrawer />
       <Footer />
     </>
   );

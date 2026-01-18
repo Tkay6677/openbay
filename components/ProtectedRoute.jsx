@@ -2,15 +2,16 @@
 import { useAuth } from "../lib/hooks/useAuth";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
-import Link from "next/link";
 
-export default function ProtectedRoute({ children, redirectTo = "/login" }) {
+export default function ProtectedRoute({ children, redirectTo = "/?login=1" }) {
   const { isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
-      router.push(`${redirectTo}?callbackUrl=${encodeURIComponent(window.location.pathname)}`);
+      const callbackUrl = `${window.location.pathname}${window.location.search || ""}`;
+      const separator = redirectTo.includes("?") ? "&" : "?";
+      router.push(`${redirectTo}${separator}callbackUrl=${encodeURIComponent(callbackUrl)}`);
     }
   }, [isAuthenticated, isLoading, router, redirectTo]);
 
@@ -30,9 +31,17 @@ export default function ProtectedRoute({ children, redirectTo = "/login" }) {
           <p style={{ color: "var(--muted)", marginBottom: 24 }}>
             Please sign in to access this page.
           </p>
-          <Link href={redirectTo} className="btn primary">
+          <button
+            className="btn primary"
+            type="button"
+            onClick={() => {
+              const callbackUrl = `${window.location.pathname}${window.location.search || ""}`;
+              const separator = redirectTo.includes("?") ? "&" : "?";
+              router.push(`${redirectTo}${separator}callbackUrl=${encodeURIComponent(callbackUrl)}`);
+            }}
+          >
             Sign In
-          </Link>
+          </button>
         </div>
       </div>
     );

@@ -234,7 +234,7 @@ export default function ProfilePage() {
                     </>
                   ) : (
                     <div style={{ fontSize: 14, color: "var(--muted)" }}>
-                      <Link href="/login" style={{ color: "var(--primary)" }}>Sign in</Link> to view your virtual wallet
+                      <Link href="/?login=1&callbackUrl=%2Fprofile" style={{ color: "var(--primary)" }}>Sign in</Link> to view your virtual wallet
                     </div>
                   )}
                 </div>
@@ -359,7 +359,7 @@ export default function ProfilePage() {
               <div style={{ padding: 40, textAlign: "center", color: "var(--muted)" }}>Loading your virtual NFTs...</div>
             ) : virtualOwnedState.isUnauthorized ? (
               <div style={{ padding: 40, textAlign: "center", color: "var(--muted)" }}>
-                <Link href="/login" style={{ color: "var(--primary)" }}>Sign in</Link> to view your virtual wallet NFTs.
+                <Link href="/?login=1&callbackUrl=%2Fprofile" style={{ color: "var(--primary)" }}>Sign in</Link> to view your virtual wallet NFTs.
               </div>
             ) : virtualOwnedState.error ? (
               <div style={{ padding: 40, textAlign: "center", color: "var(--red)" }}>{virtualOwnedState.error}</div>

@@ -32,13 +32,20 @@ async function verifyDeposit(txHash, platformWalletAddress) {
 
   // Get amount
   const amountETH = parseFloat(ethers.utils.formatEther(tx.value));
+  if (!Number.isFinite(amountETH) || amountETH <= 0) throw new Error("Invalid deposit amount");
+
+  const currentBlock = await provider.getBlockNumber();
+  const confirmations =
+    typeof receipt.blockNumber === "number"
+      ? Math.max(0, currentBlock - receipt.blockNumber + 1)
+      : null;
 
   return {
     verified: true,
     amount: amountETH,
     from: tx.from.toLowerCase(),
     blockNumber: receipt.blockNumber,
-    confirmations: receipt.confirmations ?? null,
+    confirmations,
     gasUsed: receipt.gasUsed.toString(),
   };
 }
@@ -51,7 +58,8 @@ export async function POST(req) {
     }
 
     const body = await req.json();
-    const { txHash } = body;
+    const txHashRaw = body?.txHash;
+    const txHash = typeof txHashRaw === "string" ? txHashRaw.trim().toLowerCase() : "";
 
     if (!txHash) {
       return NextResponse.json({ error: "txHash is required" }, { status: 400 });
@@ -74,7 +82,9 @@ export async function POST(req) {
 
     // Check for duplicate processing
     const db = await getDb();
-    const existing = await db.collection("walletTransactions").findOne({ txHash });
+    const existing = await db.collection("walletTransactions").findOne({
+      txHash: { $in: [txHashRaw, txHash] },
+    });
     if (existing) {
       return NextResponse.json({
         success: true,

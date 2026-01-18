@@ -18,12 +18,57 @@ function formatEth(value) {
   return n.toFixed(4);
 }
 
+function isEthAddress(value) {
+  return /^0x[a-fA-F0-9]{40}$/.test(String(value || "").trim());
+}
+
+function SkeletonTable({ columns = 6, rows = 6, minWidth = 980 } = {}) {
+  const cols = Array.from({ length: columns });
+  const r = Array.from({ length: rows });
+  return (
+    <div
+      style={{
+        overflowX: "auto",
+        border: "1px solid rgba(255, 255, 255, 0.08)",
+        borderRadius: 14,
+        background: "rgba(0, 0, 0, 0.18)",
+      }}
+    >
+      <table style={{ width: "100%", minWidth, borderCollapse: "separate", borderSpacing: 0 }}>
+        <thead>
+          <tr style={{ background: "rgba(255, 255, 255, 0.02)" }}>
+            {cols.map((_, idx) => (
+              <th key={idx} style={{ padding: "10px 12px" }}>
+                <div style={{ height: 10, borderRadius: 999, background: "rgba(255,255,255,0.10)", width: `${40 + (idx % 3) * 18}%` }} />
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {r.map((_, rowIdx) => (
+            <tr key={rowIdx}>
+              {cols.map((__, colIdx) => (
+                <td key={colIdx} style={{ padding: "10px 12px", borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+                  <div style={{ height: 12, borderRadius: 10, background: "rgba(255,255,255,0.06)", width: `${55 + ((rowIdx + colIdx) % 4) * 10}%` }} />
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 export default function AdminDashboard() {
   const tabs = useMemo(
     () => [
       { key: "users", label: "Users" },
       { key: "transactions", label: "Transactions" },
       { key: "withdrawals", label: "Withdrawals" },
+      { key: "platformWallet", label: "Platform Wallet" },
+      { key: "items", label: "NFTs" },
+      { key: "collections", label: "Collections" },
       { key: "featuredAssets", label: "Featured NFTs" },
       { key: "featuredCollections", label: "Featured Collections" },
       { key: "heroBanners", label: "Hero Carousel" },
@@ -36,12 +81,19 @@ export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState("users");
   const [globalError, setGlobalError] = useState(null);
 
+  const activeTabLabel = useMemo(() => {
+    const found = tabs.find((t) => t.key === activeTab);
+    return found?.label || "Admin";
+  }, [activeTab, tabs]);
+
   const [usersQuery, setUsersQuery] = useState("");
   const [users, setUsers] = useState([]);
   const [usersLoading, setUsersLoading] = useState(false);
 
   const [adjustForm, setAdjustForm] = useState({ userId: "", mode: "delta", amount: "", reason: "" });
   const [adjustStatus, setAdjustStatus] = useState({ isLoading: false, error: null, success: null });
+  const [userEditForm, setUserEditForm] = useState({ userId: "", name: "", walletAddress: "" });
+  const [userEditStatus, setUserEditStatus] = useState({ isLoading: false, error: null, success: null });
 
   const [txQuery, setTxQuery] = useState("");
   const [txType, setTxType] = useState("all");
@@ -54,6 +106,87 @@ export default function AdminDashboard() {
   const [withdrawals, setWithdrawals] = useState([]);
   const [withdrawalsLoading, setWithdrawalsLoading] = useState(false);
   const [processWithdrawalsStatus, setProcessWithdrawalsStatus] = useState({ isLoading: false, error: null, result: null });
+
+  const [platformWallet, setPlatformWallet] = useState(null);
+  const [platformWalletLoading, setPlatformWalletLoading] = useState(false);
+  const [platformWalletForm, setPlatformWalletForm] = useState({ address: "" });
+  const [platformWalletStatus, setPlatformWalletStatus] = useState({ isLoading: false, error: null, success: null });
+
+  const platformWalletCurrentAddress = platformWallet?.address || "";
+  const platformWalletDraftAddress = String(platformWalletForm.address || "").trim();
+  const platformWalletDraftValid = isEthAddress(platformWalletDraftAddress);
+  const platformWalletDraftChanged =
+    !!platformWalletDraftAddress &&
+    platformWalletDraftAddress.toLowerCase() !== platformWalletCurrentAddress.toLowerCase();
+
+  const [toasts, setToasts] = useState([]);
+  const pushToast = useCallback((toast) => {
+    const id = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    const next = {
+      id,
+      type: toast?.type || "info",
+      message: toast?.message || "",
+    };
+    setToasts((prev) => [...prev, next].slice(-4));
+    window.setTimeout(() => {
+      setToasts((prev) => prev.filter((t) => t.id !== id));
+    }, toast?.timeoutMs || 3600);
+  }, []);
+
+  const [confirmState, setConfirmState] = useState(null);
+  const requestConfirm = useCallback(({ title, message, confirmText, tone } = {}) => {
+    return new Promise((resolve) => {
+      setConfirmState({
+        title: title || "Confirm",
+        message: message || "",
+        confirmText: confirmText || "Confirm",
+        tone: tone || "danger",
+        resolve,
+      });
+    });
+  }, []);
+
+  const copyToClipboard = useCallback(
+    async (text, successMessage = "Copied") => {
+      try {
+        await navigator.clipboard.writeText(String(text || ""));
+        pushToast({ type: "success", message: successMessage });
+      } catch (e) {
+        pushToast({ type: "error", message: e?.message || "Copy failed" });
+      }
+    },
+    [pushToast]
+  );
+
+  const [itemsQuery, setItemsQuery] = useState("");
+  const [itemsStatusFilter, setItemsStatusFilter] = useState("all");
+  const [items, setItems] = useState([]);
+  const [itemsLoading, setItemsLoading] = useState(false);
+  const [itemForm, setItemForm] = useState({
+    contractAddress: "",
+    tokenId: "",
+    name: "",
+    collection: "",
+    image: "",
+    priceEth: "0",
+    ownerId: "",
+    status: "owned",
+    description: "",
+  });
+  const [itemStatus, setItemStatus] = useState({ isLoading: false, error: null, success: null });
+
+  const [collectionsQuery, setCollectionsQuery] = useState("");
+  const [collections, setCollections] = useState([]);
+  const [collectionsLoading, setCollectionsLoading] = useState(false);
+  const [adminCollectionForm, setAdminCollectionForm] = useState({
+    contractAddress: "",
+    name: "",
+    description: "",
+    image: "",
+    creatorId: "",
+    nextTokenId: "",
+  });
+  const [adminCollectionStatus, setAdminCollectionStatus] = useState({ isLoading: false, error: null, success: null });
 
   const [featuredAssets, setFeaturedAssets] = useState([]);
   const [featuredAssetsLoading, setFeaturedAssetsLoading] = useState(false);
@@ -150,12 +283,14 @@ export default function AdminDashboard() {
         const data = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(data.error || "Failed to approve deposit");
         setApproveDepositStatus({ isLoading: false, error: null, success: "Deposit approved", txId: transactionId });
+        pushToast({ type: "success", message: "Deposit approved" });
         fetchTransactions();
       } catch (e) {
         setApproveDepositStatus({ isLoading: false, error: e.message || "Failed to approve deposit", success: null, txId: transactionId });
+        pushToast({ type: "error", message: e.message || "Failed to approve deposit" });
       }
     },
-    [fetchTransactions]
+    [fetchTransactions, pushToast]
   );
 
   const fetchWithdrawals = useCallback(async () => {
@@ -174,6 +309,43 @@ export default function AdminDashboard() {
       setWithdrawalsLoading(false);
     }
   }, [withdrawalStatusFilter]);
+
+  const fetchPlatformWallet = useCallback(async () => {
+    setPlatformWalletLoading(true);
+    setGlobalError(null);
+    try {
+      const res = await fetch("/api/admin/platform-wallet");
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Failed to fetch platform wallet");
+      setPlatformWallet({ address: data.address, chainId: data.chainId || 1 });
+      setPlatformWalletForm({ address: data.address || "" });
+    } catch (e) {
+      setGlobalError(e.message || "Failed to fetch platform wallet");
+    } finally {
+      setPlatformWalletLoading(false);
+    }
+  }, []);
+
+  const submitPlatformWallet = async (e) => {
+    e.preventDefault();
+    setPlatformWalletStatus({ isLoading: true, error: null, success: null });
+    try {
+      const res = await fetch("/api/admin/platform-wallet", {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ platformWalletAddress: platformWalletForm.address }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Failed to update platform wallet address");
+      setPlatformWalletStatus({ isLoading: false, error: null, success: "Updated" });
+      setPlatformWallet({ address: data.address, chainId: data.chainId || 1 });
+      setPlatformWalletForm({ address: data.address || "" });
+      pushToast({ type: "success", message: "Platform wallet updated" });
+    } catch (err) {
+      setPlatformWalletStatus({ isLoading: false, error: err.message || "Failed to update platform wallet address", success: null });
+      pushToast({ type: "error", message: err.message || "Failed to update platform wallet address" });
+    }
+  };
 
   const fetchFeaturedAssets = useCallback(async () => {
     setFeaturedAssetsLoading(true);
@@ -220,14 +392,63 @@ export default function AdminDashboard() {
     }
   }, []);
 
+  const fetchItems = useCallback(async () => {
+    setItemsLoading(true);
+    setGlobalError(null);
+    try {
+      const params = new URLSearchParams();
+      if (itemsQuery.trim()) params.set("q", itemsQuery.trim());
+      if (itemsStatusFilter && itemsStatusFilter !== "all") params.set("status", itemsStatusFilter);
+      const res = await fetch(`/api/admin/items?${params.toString()}`);
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Failed to fetch items");
+      setItems(data.items || []);
+    } catch (e) {
+      setGlobalError(e.message || "Failed to fetch items");
+    } finally {
+      setItemsLoading(false);
+    }
+  }, [itemsQuery, itemsStatusFilter]);
+
+  const fetchAdminCollections = useCallback(async () => {
+    setCollectionsLoading(true);
+    setGlobalError(null);
+    try {
+      const params = new URLSearchParams();
+      if (collectionsQuery.trim()) params.set("q", collectionsQuery.trim());
+      const res = await fetch(`/api/admin/collections?${params.toString()}`);
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Failed to fetch collections");
+      setCollections(data.collections || []);
+    } catch (e) {
+      setGlobalError(e.message || "Failed to fetch collections");
+    } finally {
+      setCollectionsLoading(false);
+    }
+  }, [collectionsQuery]);
+
   useEffect(() => {
     if (activeTab === "users") fetchUsers();
     if (activeTab === "transactions") fetchTransactions();
     if (activeTab === "withdrawals") fetchWithdrawals();
+    if (activeTab === "platformWallet") fetchPlatformWallet();
+    if (activeTab === "items") fetchItems();
+    if (activeTab === "collections") fetchAdminCollections();
     if (activeTab === "featuredAssets") fetchFeaturedAssets();
     if (activeTab === "featuredCollections") fetchFeaturedCollections();
     if (activeTab === "heroBanners") fetchHeroBanners();
-  }, [activeTab, fetchFeaturedAssets, fetchFeaturedCollections, fetchTransactions, fetchUsers, fetchWithdrawals]);
+  }, [
+    activeTab,
+    fetchAdminCollections,
+    fetchFeaturedAssets,
+    fetchFeaturedCollections,
+    fetchHeroBanners,
+    fetchItems,
+    fetchPlatformWallet,
+    fetchTransactions,
+    fetchUsers,
+    fetchWithdrawals,
+  ]);
 
   const submitAdjustBalance = async (e) => {
     e.preventDefault();
@@ -250,6 +471,143 @@ export default function AdminDashboard() {
       fetchUsers();
     } catch (err) {
       setAdjustStatus({ isLoading: false, error: err.message || "Failed to adjust balance", success: null });
+    }
+  };
+
+  const submitUserEdit = async (e) => {
+    e.preventDefault();
+    setUserEditStatus({ isLoading: true, error: null, success: null });
+    try {
+      const res = await fetch("/api/admin/users", {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          userId: userEditForm.userId,
+          name: userEditForm.name.trim() ? userEditForm.name : null,
+          walletAddress: userEditForm.walletAddress.trim() ? userEditForm.walletAddress : null,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Failed to update user");
+      setUserEditStatus({ isLoading: false, error: null, success: "Saved" });
+      setUserEditForm({ userId: "", name: "", walletAddress: "" });
+      fetchUsers();
+    } catch (err) {
+      setUserEditStatus({ isLoading: false, error: err.message || "Failed to update user", success: null });
+    }
+  };
+
+  const deleteUser = async (id) => {
+    const confirmed = await requestConfirm({
+      title: "Delete user",
+      message: "This will permanently delete the user record.",
+      confirmText: "Delete",
+      tone: "danger",
+    });
+    if (!confirmed) return;
+
+    setUserEditStatus({ isLoading: true, error: null, success: null });
+    try {
+      const res = await fetch(`/api/admin/users?id=${encodeURIComponent(id)}`, { method: "DELETE" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Failed to delete user");
+      setUserEditStatus({ isLoading: false, error: null, success: "Deleted" });
+      pushToast({ type: "success", message: "User deleted" });
+      fetchUsers();
+    } catch (err) {
+      setUserEditStatus({ isLoading: false, error: err.message || "Failed to delete user", success: null });
+      pushToast({ type: "error", message: err.message || "Failed to delete user" });
+    }
+  };
+
+  const submitItem = async (e) => {
+    e.preventDefault();
+    setItemStatus({ isLoading: true, error: null, success: null });
+    try {
+      const res = await fetch("/api/admin/items", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(itemForm),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Failed to save item");
+      setItemStatus({ isLoading: false, error: null, success: "Saved" });
+      setItemForm({
+        contractAddress: "",
+        tokenId: "",
+        name: "",
+        collection: "",
+        image: "",
+        priceEth: "0",
+        ownerId: "",
+        status: "owned",
+        description: "",
+      });
+      fetchItems();
+    } catch (err) {
+      setItemStatus({ isLoading: false, error: err.message || "Failed to save item", success: null });
+    }
+  };
+
+  const deleteItem = async (id) => {
+    const confirmed = await requestConfirm({
+      title: "Delete item",
+      message: "This will permanently delete the item record.",
+      confirmText: "Delete",
+      tone: "danger",
+    });
+    if (!confirmed) return;
+
+    setItemStatus({ isLoading: true, error: null, success: null });
+    try {
+      const res = await fetch(`/api/admin/items?id=${encodeURIComponent(id)}`, { method: "DELETE" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Failed to delete item");
+      setItemStatus({ isLoading: false, error: null, success: "Deleted" });
+      pushToast({ type: "success", message: "Item deleted" });
+      fetchItems();
+    } catch (err) {
+      setItemStatus({ isLoading: false, error: err.message || "Failed to delete item", success: null });
+      pushToast({ type: "error", message: err.message || "Failed to delete item" });
+    }
+  };
+
+  const submitAdminCollection = async (e) => {
+    e.preventDefault();
+    setAdminCollectionStatus({ isLoading: true, error: null, success: null });
+    try {
+      const res = await fetch("/api/admin/collections", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(adminCollectionForm),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Failed to save collection");
+      setAdminCollectionStatus({ isLoading: false, error: null, success: "Saved" });
+      setAdminCollectionForm({
+        contractAddress: "",
+        name: "",
+        description: "",
+        image: "",
+        creatorId: "",
+        nextTokenId: "",
+      });
+      fetchAdminCollections();
+    } catch (err) {
+      setAdminCollectionStatus({ isLoading: false, error: err.message || "Failed to save collection", success: null });
+    }
+  };
+
+  const deleteAdminCollection = async (id) => {
+    setAdminCollectionStatus({ isLoading: true, error: null, success: null });
+    try {
+      const res = await fetch(`/api/admin/collections?id=${encodeURIComponent(id)}`, { method: "DELETE" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Failed to delete collection");
+      setAdminCollectionStatus({ isLoading: false, error: null, success: "Deleted" });
+      fetchAdminCollections();
+    } catch (err) {
+      setAdminCollectionStatus({ isLoading: false, error: err.message || "Failed to delete collection", success: null });
     }
   };
 
@@ -283,15 +641,25 @@ export default function AdminDashboard() {
   };
 
   const deleteFeaturedAsset = async (id) => {
+    const confirmed = await requestConfirm({
+      title: "Delete featured NFT",
+      message: "This will remove the NFT from the featured list.",
+      confirmText: "Delete",
+      tone: "danger",
+    });
+    if (!confirmed) return;
+
     setAssetStatus({ isLoading: true, error: null, success: null });
     try {
       const res = await fetch(`/api/admin/featured-assets?id=${encodeURIComponent(id)}`, { method: "DELETE" });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || "Failed to delete asset");
       setAssetStatus({ isLoading: false, error: null, success: "Deleted" });
+      pushToast({ type: "success", message: "Featured NFT deleted" });
       fetchFeaturedAssets();
     } catch (err) {
       setAssetStatus({ isLoading: false, error: err.message || "Failed to delete asset", success: null });
+      pushToast({ type: "error", message: err.message || "Failed to delete asset" });
     }
   };
 
@@ -315,28 +683,48 @@ export default function AdminDashboard() {
   };
 
   const deleteFeaturedCollection = async (id) => {
+    const confirmed = await requestConfirm({
+      title: "Delete featured collection",
+      message: "This will remove the collection from the featured list.",
+      confirmText: "Delete",
+      tone: "danger",
+    });
+    if (!confirmed) return;
+
     setCollectionStatus({ isLoading: true, error: null, success: null });
     try {
       const res = await fetch(`/api/admin/featured-collections?id=${encodeURIComponent(id)}`, { method: "DELETE" });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || "Failed to delete collection");
       setCollectionStatus({ isLoading: false, error: null, success: "Deleted" });
+      pushToast({ type: "success", message: "Featured collection deleted" });
       fetchFeaturedCollections();
     } catch (err) {
       setCollectionStatus({ isLoading: false, error: err.message || "Failed to delete collection", success: null });
+      pushToast({ type: "error", message: err.message || "Failed to delete collection" });
     }
   };
 
   const runProcessWithdrawals = async () => {
+    const confirmed = await requestConfirm({
+      title: "Process withdrawals",
+      message: "This will attempt to process pending withdrawals from the platform wallet.",
+      confirmText: "Process",
+      tone: "info",
+    });
+    if (!confirmed) return;
+
     setProcessWithdrawalsStatus({ isLoading: true, error: null, result: null });
     try {
       const res = await fetch("/api/admin/process-withdrawals?limit=10&minWaitMs=60000", { method: "POST" });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || "Failed to process withdrawals");
       setProcessWithdrawalsStatus({ isLoading: false, error: null, result: data });
+      pushToast({ type: "success", message: data.message || "Processed withdrawals" });
       fetchWithdrawals();
     } catch (err) {
       setProcessWithdrawalsStatus({ isLoading: false, error: err.message || "Failed to process withdrawals", result: null });
+      pushToast({ type: "error", message: err.message || "Failed to process withdrawals" });
     }
   };
 
@@ -443,40 +831,59 @@ export default function AdminDashboard() {
   };
 
   const deleteHeroBanner = async (id) => {
+    const confirmed = await requestConfirm({
+      title: "Delete hero banner",
+      message: "This will remove the banner from the hero carousel.",
+      confirmText: "Delete",
+      tone: "danger",
+    });
+    if (!confirmed) return;
+
     setHeroBannerStatus({ isLoading: true, error: null, success: null });
     try {
       const res = await fetch(`/api/admin/hero-banners?id=${encodeURIComponent(id)}`, { method: "DELETE" });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || "Failed to delete hero banner");
       setHeroBannerStatus({ isLoading: false, error: null, success: "Deleted" });
+      pushToast({ type: "success", message: "Hero banner deleted" });
       fetchHeroBanners();
     } catch (err) {
       setHeroBannerStatus({ isLoading: false, error: err.message || "Failed to delete hero banner", success: null });
+      pushToast({ type: "error", message: err.message || "Failed to delete hero banner" });
     }
   };
 
   return (
-    <div className="card" style={{ padding: 16 }}>
-      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
-        {tabs.map((t) => (
-          <button
-            key={t.key}
-            className={`btn ${activeTab === t.key ? "primary" : ""}`}
-            onClick={() => {
-              setActiveTab(t.key);
-              setGlobalError(null);
-            }}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
-
-      {globalError ? (
-        <div style={{ marginBottom: 16, padding: 12, borderRadius: 8, border: "1px solid var(--red)", color: "var(--red)" }}>
-          {globalError}
+    <div className="admin-shell">
+      <aside className="admin-sidebar">
+        <div className="admin-sidebar-top">
+          <div className="admin-sidebar-title">Admin</div>
         </div>
-      ) : null}
+        <div className="admin-tabs">
+          {tabs.map((t) => (
+            <button
+              key={t.key}
+              className={`admin-tab ${activeTab === t.key ? "active" : ""}`}
+              onClick={() => {
+                setActiveTab(t.key);
+                setGlobalError(null);
+              }}
+              type="button"
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+      </aside>
+
+      <div className="admin-main">
+        <div className="admin-toolbar">
+          <div className="admin-toolbar-title">{activeTabLabel}</div>
+        </div>
+
+        {globalError ? <div className="admin-alert error">{globalError}</div> : null}
+
+        <div className="admin-content">
 
       {activeTab === "users" ? (
         <div style={{ display: "grid", gap: 16 }}>
@@ -537,51 +944,142 @@ export default function AdminDashboard() {
             </button>
           </form>
 
+          <form onSubmit={submitUserEdit} style={{ display: "grid", gap: 10 }}>
+            <div style={{ fontWeight: 700 }}>Update User</div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 8 }}>
+              <input
+                className="btn"
+                style={{ cursor: "text" }}
+                value={userEditForm.userId}
+                onChange={(e) => setUserEditForm((s) => ({ ...s, userId: e.target.value }))}
+                placeholder="User ID"
+                required
+              />
+              <input
+                className="btn"
+                style={{ cursor: "text" }}
+                value={userEditForm.name}
+                onChange={(e) => setUserEditForm((s) => ({ ...s, name: e.target.value }))}
+                placeholder="Name (optional)"
+              />
+              <input
+                className="btn"
+                style={{ cursor: "text" }}
+                value={userEditForm.walletAddress}
+                onChange={(e) => setUserEditForm((s) => ({ ...s, walletAddress: e.target.value }))}
+                placeholder="Wallet address (optional)"
+              />
+            </div>
+            {userEditStatus.error ? <div style={{ color: "var(--red)" }}>{userEditStatus.error}</div> : null}
+            {userEditStatus.success ? <div style={{ color: "var(--green)" }}>{userEditStatus.success}</div> : null}
+            <button className="btn primary" type="submit" disabled={userEditStatus.isLoading}>
+              {userEditStatus.isLoading ? "Saving..." : "Save"}
+            </button>
+          </form>
+
           <div style={{ borderTop: "1px solid var(--border)", paddingTop: 12 }}>
             {users.length === 0 ? (
-              <div style={{ color: "var(--muted)" }}>{usersLoading ? "Loading..." : "No users found"}</div>
+              usersLoading ? (
+                <SkeletonTable columns={7} rows={6} minWidth={980} />
+              ) : (
+                <div style={{ display: "grid", gap: 10, padding: 12, borderRadius: 14, border: "1px solid rgba(255,255,255,0.08)", background: "rgba(0,0,0,0.18)" }}>
+                  <div style={{ fontWeight: 800 }}>No users found</div>
+                  <div style={{ color: "rgba(255,255,255,0.60)", fontSize: 13 }}>Try a different search query.</div>
+                  {usersQuery.trim() ? (
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                      <button
+                        className="btn"
+                        type="button"
+                        onClick={() => {
+                          setUsersQuery("");
+                          fetchUsers();
+                        }}
+                      >
+                        Clear search
+                      </button>
+                    </div>
+                  ) : null}
+                </div>
+              )
             ) : (
-              <div style={{ display: "grid", gap: 10 }}>
-                {users.map((u) => (
-                  <div
-                    key={u.id}
-                    style={{
-                      padding: 12,
-                      borderRadius: 8,
-                      border: "1px solid var(--border)",
-                      background: "var(--bg-secondary)",
-                      display: "grid",
-                      gap: 4,
-                    }}
-                  >
-                    <div style={{ display: "flex", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
-                      <div style={{ fontWeight: 700 }}>{u.email || u.name || u.id}</div>
-                      <div style={{ color: "var(--muted)", fontSize: 12 }}>{u.provider || "—"}</div>
-                    </div>
-                    <div style={{ fontSize: 12, color: "var(--muted)" }}>ID: {u.id}</div>
-                    <div style={{ fontSize: 12, color: "var(--muted)" }}>
-                      Wallet: {u.walletAddress ? truncateAddress(u.walletAddress) : "—"}
-                    </div>
-                    <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 6 }}>
-                      <div>
-                        <div style={{ fontSize: 12, color: "var(--muted)" }}>Balance</div>
-                        <div style={{ fontWeight: 700 }}>{formatEth(u.virtualBalance)} ETH</div>
-                      </div>
-                      <div>
-                        <div style={{ fontSize: 12, color: "var(--muted)" }}>Deposited</div>
-                        <div style={{ fontWeight: 700 }}>{formatEth(u.totalDeposited)} ETH</div>
-                      </div>
-                      <div>
-                        <div style={{ fontSize: 12, color: "var(--muted)" }}>Withdrawn</div>
-                        <div style={{ fontWeight: 700 }}>{formatEth(u.totalWithdrawn)} ETH</div>
-                      </div>
-                      <div>
-                        <div style={{ fontSize: 12, color: "var(--muted)" }}>Created</div>
-                        <div style={{ fontWeight: 700 }}>{formatDate(u.createdAt)}</div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
+              <div
+                style={{
+                  overflowX: "auto",
+                  border: "1px solid rgba(255, 255, 255, 0.08)",
+                  borderRadius: 14,
+                  background: "rgba(0, 0, 0, 0.18)",
+                }}
+              >
+                <table style={{ width: "100%", minWidth: 980, borderCollapse: "separate", borderSpacing: 0 }}>
+                  <thead>
+                    <tr style={{ background: "rgba(255, 255, 255, 0.02)" }}>
+                      <th style={{ textAlign: "left", padding: "10px 12px", fontSize: 11, color: "rgba(255,255,255,0.55)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+                        User
+                      </th>
+                      <th style={{ textAlign: "left", padding: "10px 12px", fontSize: 11, color: "rgba(255,255,255,0.55)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+                        Wallet
+                      </th>
+                      <th style={{ textAlign: "right", padding: "10px 12px", fontSize: 11, color: "rgba(255,255,255,0.55)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+                        Balance
+                      </th>
+                      <th style={{ textAlign: "right", padding: "10px 12px", fontSize: 11, color: "rgba(255,255,255,0.55)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+                        Deposited
+                      </th>
+                      <th style={{ textAlign: "right", padding: "10px 12px", fontSize: 11, color: "rgba(255,255,255,0.55)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+                        Withdrawn
+                      </th>
+                      <th style={{ textAlign: "left", padding: "10px 12px", fontSize: 11, color: "rgba(255,255,255,0.55)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+                        Created
+                      </th>
+                      <th style={{ textAlign: "right", padding: "10px 12px", fontSize: 11, color: "rgba(255,255,255,0.55)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {users.map((u, idx) => (
+                      <tr key={u.id}>
+                        <td style={{ padding: "10px 12px", borderTop: idx === 0 ? "1px solid rgba(255,255,255,0.06)" : "1px solid rgba(255,255,255,0.06)" }}>
+                          <div style={{ fontWeight: 800, fontSize: 13 }}>{u.email || u.name || u.id}</div>
+                          <div style={{ fontSize: 12, color: "rgba(255,255,255,0.55)" }}>
+                            {u.provider || "—"} · <span style={{ fontFamily: "monospace" }}>{u.id}</span>
+                          </div>
+                        </td>
+                        <td style={{ padding: "10px 12px", borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+                          <div style={{ fontFamily: "monospace", fontSize: 12 }}>
+                            {u.walletAddress ? truncateAddress(u.walletAddress) : "—"}
+                          </div>
+                        </td>
+                        <td style={{ padding: "10px 12px", textAlign: "right", borderTop: "1px solid rgba(255,255,255,0.06)", fontVariantNumeric: "tabular-nums" }}>
+                          {formatEth(u.virtualBalance)} ETH
+                        </td>
+                        <td style={{ padding: "10px 12px", textAlign: "right", borderTop: "1px solid rgba(255,255,255,0.06)", fontVariantNumeric: "tabular-nums", color: "rgba(255,255,255,0.82)" }}>
+                          {formatEth(u.totalDeposited)} ETH
+                        </td>
+                        <td style={{ padding: "10px 12px", textAlign: "right", borderTop: "1px solid rgba(255,255,255,0.06)", fontVariantNumeric: "tabular-nums", color: "rgba(255,255,255,0.82)" }}>
+                          {formatEth(u.totalWithdrawn)} ETH
+                        </td>
+                        <td style={{ padding: "10px 12px", borderTop: "1px solid rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.65)", fontSize: 12 }}>
+                          {formatDate(u.createdAt)}
+                        </td>
+                        <td style={{ padding: "10px 12px", borderTop: "1px solid rgba(255,255,255,0.06)", textAlign: "right" }}>
+                          <div style={{ display: "inline-flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
+                            <button
+                              className="btn"
+                              type="button"
+                              onClick={() => setUserEditForm({ userId: u.id, name: u.name || "", walletAddress: u.walletAddress || "" })}
+                            >
+                              Edit
+                            </button>
+                            <button className="btn" type="button" onClick={() => deleteUser(u.id)} disabled={userEditStatus.isLoading}>
+                              Delete
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             )}
           </div>
@@ -623,65 +1121,112 @@ export default function AdminDashboard() {
           </div>
 
           {transactions.length === 0 ? (
-            <div style={{ color: "var(--muted)" }}>{transactionsLoading ? "Loading..." : "No transactions found"}</div>
+            transactionsLoading ? (
+              <SkeletonTable columns={7} rows={7} minWidth={980} />
+            ) : (
+              <div style={{ display: "grid", gap: 10, padding: 12, borderRadius: 14, border: "1px solid rgba(255,255,255,0.08)", background: "rgba(0,0,0,0.18)" }}>
+                <div style={{ fontWeight: 800 }}>No transactions found</div>
+                <div style={{ color: "rgba(255,255,255,0.60)", fontSize: 13 }}>Try adjusting filters or clearing the search.</div>
+                {txQuery.trim() || txType !== "all" || txStatus !== "all" ? (
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    <button
+                      className="btn"
+                      type="button"
+                      onClick={() => {
+                        setTxQuery("");
+                        setTxType("all");
+                        setTxStatus("all");
+                        fetchTransactions();
+                      }}
+                    >
+                      Clear filters
+                    </button>
+                  </div>
+                ) : null}
+              </div>
+            )
           ) : (
-            <div style={{ display: "grid", gap: 10 }}>
-              {transactions.map((tx) => (
-                <div
-                  key={tx.id}
-                  style={{
-                    padding: 12,
-                    borderRadius: 8,
-                    border: "1px solid var(--border)",
-                    background: "var(--bg-secondary)",
-                    display: "grid",
-                    gap: 4,
-                  }}
-                >
-                  <div style={{ display: "flex", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
-                    <div style={{ fontWeight: 700 }}>{tx.type}</div>
-                    <div style={{ color: "var(--muted)", fontSize: 12 }}>{formatDate(tx.createdAt)}</div>
-                  </div>
-                  <div style={{ fontSize: 12, color: "var(--muted)" }}>User: {tx.userId ? truncateAddress(tx.userId) : "—"}</div>
-                  {tx.txHash ? <div style={{ fontSize: 12, color: "var(--muted)" }}>Tx: {truncateAddress(tx.txHash)}</div> : null}
-                  <div style={{ display: "flex", gap: 14, flexWrap: "wrap", marginTop: 6 }}>
-                    <div>
-                      <div style={{ fontSize: 12, color: "var(--muted)" }}>Amount</div>
-                      <div style={{ fontWeight: 700 }}>{formatEth(tx.amount)} ETH</div>
-                    </div>
-                    <div>
-                      <div style={{ fontSize: 12, color: "var(--muted)" }}>Before</div>
-                      <div style={{ fontWeight: 700 }}>{formatEth(tx.balanceBefore)} ETH</div>
-                    </div>
-                    <div>
-                      <div style={{ fontSize: 12, color: "var(--muted)" }}>After</div>
-                      <div style={{ fontWeight: 700 }}>{formatEth(tx.balanceAfter)} ETH</div>
-                    </div>
-                    <div>
-                      <div style={{ fontSize: 12, color: "var(--muted)" }}>Status</div>
-                      <div style={{ fontWeight: 700 }}>{tx.status || "—"}</div>
-                    </div>
-                  </div>
-                  {tx.description ? <div style={{ fontSize: 12, color: "var(--muted)" }}>{tx.description}</div> : null}
-                  {tx.type === "deposit" && tx.status === "pending" ? (
-                    <div style={{ display: "flex", gap: 10, alignItems: "center", marginTop: 10, flexWrap: "wrap" }}>
-                      <button
-                        className="btn primary"
-                        onClick={() => approveDeposit(tx.id)}
-                        disabled={approveDepositStatus.isLoading && approveDepositStatus.txId === tx.id}
-                      >
-                        {approveDepositStatus.isLoading && approveDepositStatus.txId === tx.id ? "Approving..." : "Approve Deposit"}
-                      </button>
-                      {approveDepositStatus.error && approveDepositStatus.txId === tx.id ? (
-                        <div style={{ color: "var(--red)", fontSize: 12 }}>{approveDepositStatus.error}</div>
-                      ) : null}
-                      {approveDepositStatus.success && approveDepositStatus.txId === tx.id ? (
-                        <div style={{ color: "var(--green)", fontSize: 12 }}>{approveDepositStatus.success}</div>
-                      ) : null}
-                    </div>
-                  ) : null}
-                </div>
-              ))}
+            <div
+              style={{
+                overflowX: "auto",
+                border: "1px solid rgba(255, 255, 255, 0.08)",
+                borderRadius: 14,
+                background: "rgba(0, 0, 0, 0.18)",
+              }}
+            >
+              <table style={{ width: "100%", minWidth: 980, borderCollapse: "separate", borderSpacing: 0 }}>
+                <thead>
+                  <tr style={{ background: "rgba(255, 255, 255, 0.02)" }}>
+                    <th style={{ textAlign: "left", padding: "10px 12px", fontSize: 11, color: "rgba(255,255,255,0.55)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+                      Type
+                    </th>
+                    <th style={{ textAlign: "left", padding: "10px 12px", fontSize: 11, color: "rgba(255,255,255,0.55)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+                      User
+                    </th>
+                    <th style={{ textAlign: "right", padding: "10px 12px", fontSize: 11, color: "rgba(255,255,255,0.55)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+                      Amount
+                    </th>
+                    <th style={{ textAlign: "right", padding: "10px 12px", fontSize: 11, color: "rgba(255,255,255,0.55)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+                      Status
+                    </th>
+                    <th style={{ textAlign: "left", padding: "10px 12px", fontSize: 11, color: "rgba(255,255,255,0.55)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+                      Tx Hash
+                    </th>
+                    <th style={{ textAlign: "left", padding: "10px 12px", fontSize: 11, color: "rgba(255,255,255,0.55)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+                      Created
+                    </th>
+                    <th style={{ textAlign: "right", padding: "10px 12px", fontSize: 11, color: "rgba(255,255,255,0.55)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+                      Action
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {transactions.map((tx, idx) => (
+                    <tr key={tx.id}>
+                      <td style={{ padding: "10px 12px", borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+                        <div style={{ fontWeight: 800, fontSize: 13 }}>{tx.type}</div>
+                        {tx.description ? <div style={{ fontSize: 12, color: "rgba(255,255,255,0.55)" }}>{tx.description}</div> : null}
+                      </td>
+                      <td style={{ padding: "10px 12px", borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+                        <div style={{ fontFamily: "monospace", fontSize: 12 }}>{tx.userId ? truncateAddress(tx.userId) : "—"}</div>
+                      </td>
+                      <td style={{ padding: "10px 12px", textAlign: "right", borderTop: "1px solid rgba(255,255,255,0.06)", fontVariantNumeric: "tabular-nums" }}>
+                        {formatEth(tx.amount)} ETH
+                      </td>
+                      <td style={{ padding: "10px 12px", textAlign: "right", borderTop: "1px solid rgba(255,255,255,0.06)", fontWeight: 700 }}>
+                        {tx.status || "—"}
+                      </td>
+                      <td style={{ padding: "10px 12px", borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+                        <div style={{ fontFamily: "monospace", fontSize: 12 }}>{tx.txHash ? truncateAddress(tx.txHash) : "—"}</div>
+                      </td>
+                      <td style={{ padding: "10px 12px", borderTop: "1px solid rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.65)", fontSize: 12 }}>
+                        {formatDate(tx.createdAt)}
+                      </td>
+                      <td style={{ padding: "10px 12px", borderTop: "1px solid rgba(255,255,255,0.06)", textAlign: "right" }}>
+                        {tx.type === "deposit" && tx.status === "pending" ? (
+                          <div style={{ display: "inline-flex", gap: 10, alignItems: "center", flexWrap: "wrap", justifyContent: "flex-end" }}>
+                            <button
+                              className="btn primary"
+                              onClick={() => approveDeposit(tx.id)}
+                              disabled={approveDepositStatus.isLoading && approveDepositStatus.txId === tx.id}
+                            >
+                              {approveDepositStatus.isLoading && approveDepositStatus.txId === tx.id ? "Approving..." : "Approve"}
+                            </button>
+                            {approveDepositStatus.error && approveDepositStatus.txId === tx.id ? (
+                              <div style={{ color: "var(--red)", fontSize: 12 }}>{approveDepositStatus.error}</div>
+                            ) : null}
+                            {approveDepositStatus.success && approveDepositStatus.txId === tx.id ? (
+                              <div style={{ color: "var(--green)", fontSize: 12 }}>{approveDepositStatus.success}</div>
+                            ) : null}
+                          </div>
+                        ) : (
+                          <span style={{ color: "rgba(255,255,255,0.40)", fontSize: 12 }}>—</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
         </div>
@@ -716,34 +1261,435 @@ export default function AdminDashboard() {
           ) : null}
 
           {withdrawals.length === 0 ? (
-            <div style={{ color: "var(--muted)" }}>{withdrawalsLoading ? "Loading..." : "No withdrawals found"}</div>
-          ) : (
-            <div style={{ display: "grid", gap: 10 }}>
-              {withdrawals.map((w) => (
-                <div
-                  key={w.id}
-                  style={{
-                    padding: 12,
-                    borderRadius: 8,
-                    border: "1px solid var(--border)",
-                    background: "var(--bg-secondary)",
-                    display: "grid",
-                    gap: 4,
-                  }}
-                >
-                  <div style={{ display: "flex", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
-                    <div style={{ fontWeight: 700 }}>{formatEth(w.amount)} ETH</div>
-                    <div style={{ color: "var(--muted)", fontSize: 12 }}>{w.status}</div>
+            withdrawalsLoading ? (
+              <SkeletonTable columns={6} rows={6} minWidth={980} />
+            ) : (
+              <div style={{ display: "grid", gap: 10, padding: 12, borderRadius: 14, border: "1px solid rgba(255,255,255,0.08)", background: "rgba(0,0,0,0.18)" }}>
+                <div style={{ fontWeight: 800 }}>No withdrawals found</div>
+                <div style={{ color: "rgba(255,255,255,0.60)", fontSize: 13 }}>Try changing the status filter.</div>
+                {withdrawalStatusFilter !== "pending" ? (
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    <button
+                      className="btn"
+                      type="button"
+                      onClick={() => {
+                        setWithdrawalStatusFilter("pending");
+                        fetchWithdrawals();
+                      }}
+                    >
+                      Show pending
+                    </button>
                   </div>
-                  <div style={{ fontSize: 12, color: "var(--muted)" }}>User: {w.userId ? truncateAddress(w.userId) : "—"}</div>
-                  <div style={{ fontSize: 12, color: "var(--muted)" }}>To: {w.destinationAddress ? truncateAddress(w.destinationAddress) : "—"}</div>
-                  <div style={{ fontSize: 12, color: "var(--muted)" }}>Requested: {formatDate(w.requestedAt)}</div>
-                  {w.txHash ? <div style={{ fontSize: 12, color: "var(--muted)" }}>Tx: {truncateAddress(w.txHash)}</div> : null}
-                  {w.failureReason ? <div style={{ fontSize: 12, color: "var(--red)" }}>{w.failureReason}</div> : null}
-                </div>
-              ))}
+                ) : null}
+              </div>
+            )
+          ) : (
+            <div
+              style={{
+                overflowX: "auto",
+                border: "1px solid rgba(255, 255, 255, 0.08)",
+                borderRadius: 14,
+                background: "rgba(0, 0, 0, 0.18)",
+              }}
+            >
+              <table style={{ width: "100%", minWidth: 980, borderCollapse: "separate", borderSpacing: 0 }}>
+                <thead>
+                  <tr style={{ background: "rgba(255, 255, 255, 0.02)" }}>
+                    <th style={{ textAlign: "left", padding: "10px 12px", fontSize: 11, color: "rgba(255,255,255,0.55)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+                      User
+                    </th>
+                    <th style={{ textAlign: "right", padding: "10px 12px", fontSize: 11, color: "rgba(255,255,255,0.55)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+                      Amount
+                    </th>
+                    <th style={{ textAlign: "left", padding: "10px 12px", fontSize: 11, color: "rgba(255,255,255,0.55)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+                      To
+                    </th>
+                    <th style={{ textAlign: "right", padding: "10px 12px", fontSize: 11, color: "rgba(255,255,255,0.55)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+                      Status
+                    </th>
+                    <th style={{ textAlign: "left", padding: "10px 12px", fontSize: 11, color: "rgba(255,255,255,0.55)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+                      Requested
+                    </th>
+                    <th style={{ textAlign: "left", padding: "10px 12px", fontSize: 11, color: "rgba(255,255,255,0.55)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+                      Tx Hash
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {withdrawals.map((w) => (
+                    <tr key={w.id}>
+                      <td style={{ padding: "10px 12px", borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+                        <div style={{ fontFamily: "monospace", fontSize: 12 }}>{w.userId ? truncateAddress(w.userId) : "—"}</div>
+                        {w.failureReason ? <div style={{ fontSize: 12, color: "var(--red)" }}>{w.failureReason}</div> : null}
+                      </td>
+                      <td style={{ padding: "10px 12px", textAlign: "right", borderTop: "1px solid rgba(255,255,255,0.06)", fontVariantNumeric: "tabular-nums", fontWeight: 800 }}>
+                        {formatEth(w.amount)} ETH
+                      </td>
+                      <td style={{ padding: "10px 12px", borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+                        <div style={{ fontFamily: "monospace", fontSize: 12 }}>{w.destinationAddress ? truncateAddress(w.destinationAddress) : "—"}</div>
+                      </td>
+                      <td style={{ padding: "10px 12px", textAlign: "right", borderTop: "1px solid rgba(255,255,255,0.06)", fontWeight: 700 }}>
+                        {w.status}
+                      </td>
+                      <td style={{ padding: "10px 12px", borderTop: "1px solid rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.65)", fontSize: 12 }}>
+                        {formatDate(w.requestedAt)}
+                      </td>
+                      <td style={{ padding: "10px 12px", borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+                        <div style={{ fontFamily: "monospace", fontSize: 12 }}>{w.txHash ? truncateAddress(w.txHash) : "—"}</div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
+        </div>
+      ) : null}
+
+      {activeTab === "platformWallet" ? (
+        <div style={{ display: "grid", gap: 14, maxWidth: 920 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+            <div style={{ color: "rgba(255,255,255,0.65)", fontSize: 13 }}>
+              This address is shown to users as the deposit destination.
+            </div>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <button className="btn" type="button" onClick={fetchPlatformWallet} disabled={platformWalletLoading}>
+                {platformWalletLoading ? "Loading..." : "Refresh"}
+              </button>
+              <button className="btn" type="button" onClick={() => copyToClipboard(platformWalletCurrentAddress, "Address copied")} disabled={!platformWalletCurrentAddress}>
+                Copy current
+              </button>
+            </div>
+          </div>
+
+          <div style={{ padding: 14, borderRadius: 14, border: "1px solid rgba(255,255,255,0.08)", background: "rgba(0,0,0,0.18)", display: "grid", gap: 8 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+              <div style={{ fontWeight: 900 }}>Current platform wallet</div>
+              <div style={{ color: "rgba(255,255,255,0.55)", fontSize: 12 }}>Chain ID: {platformWallet?.chainId || "—"}</div>
+            </div>
+            <div style={{ fontFamily: "monospace", fontSize: 13, wordBreak: "break-all" }}>{platformWalletCurrentAddress || "—"}</div>
+          </div>
+
+          <form onSubmit={submitPlatformWallet} style={{ display: "grid", gap: 10 }}>
+            <div style={{ fontWeight: 900 }}>Update platform wallet address</div>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+              <input
+                className="btn"
+                style={{ cursor: "text", flex: "1 1 420px", minWidth: 0 }}
+                value={platformWalletForm.address}
+                onChange={(e) => setPlatformWalletForm({ address: e.target.value })}
+                placeholder="0x..."
+                inputMode="text"
+                required
+              />
+              <button className="btn" type="button" onClick={() => copyToClipboard(platformWalletDraftAddress, "Draft copied")} disabled={!platformWalletDraftAddress}>
+                Copy draft
+              </button>
+            </div>
+
+            <div style={{ color: platformWalletDraftAddress && !platformWalletDraftValid ? "var(--red)" : "rgba(255,255,255,0.55)", fontSize: 12 }}>
+              {!platformWalletDraftAddress
+                ? "Enter an Ethereum address (0x...)"
+                : !platformWalletDraftValid
+                  ? "Invalid address format"
+                  : platformWalletDraftChanged
+                    ? "Valid address — ready to save"
+                    : "No changes"}
+            </div>
+
+            <div style={{ color: "rgba(255,255,255,0.55)", fontSize: 12 }}>
+              Withdrawals still use PLATFORM_WALLET_PRIVATE_KEY — keep it aligned with this address.
+            </div>
+
+            {platformWalletStatus.error ? <div style={{ color: "var(--red)" }}>{platformWalletStatus.error}</div> : null}
+            {platformWalletStatus.success ? <div style={{ color: "var(--green)" }}>{platformWalletStatus.success}</div> : null}
+
+            <button className="btn primary" type="submit" disabled={platformWalletStatus.isLoading || !platformWalletDraftValid || !platformWalletDraftChanged}>
+              {platformWalletStatus.isLoading ? "Saving..." : "Save changes"}
+            </button>
+          </form>
+        </div>
+      ) : null}
+
+      {activeTab === "items" ? (
+        <div style={{ display: "grid", gap: 16 }}>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+            <input
+              className="btn"
+              style={{ cursor: "text", flex: "1 1 260px", minWidth: 0 }}
+              value={itemsQuery}
+              onChange={(e) => setItemsQuery(e.target.value)}
+              placeholder="Search (name / collection / contract / token / owner)"
+            />
+            <select className="btn" value={itemsStatusFilter} onChange={(e) => setItemsStatusFilter(e.target.value)} style={{ padding: "6px 12px" }}>
+              <option value="all">All statuses</option>
+              <option value="owned">owned</option>
+              <option value="listed">listed</option>
+              <option value="auction">auction</option>
+            </select>
+            <button className="btn" onClick={fetchItems} disabled={itemsLoading}>
+              {itemsLoading ? "Loading..." : "Refresh"}
+            </button>
+          </div>
+
+          <form onSubmit={submitItem} style={{ display: "grid", gap: 10 }}>
+            <div style={{ fontWeight: 700 }}>Add / Update NFT</div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 8 }}>
+              <input
+                className="btn"
+                style={{ cursor: "text" }}
+                value={itemForm.contractAddress}
+                onChange={(e) => setItemForm((s) => ({ ...s, contractAddress: e.target.value }))}
+                placeholder="Contract address"
+                required
+              />
+              <input
+                className="btn"
+                style={{ cursor: "text" }}
+                value={itemForm.tokenId}
+                onChange={(e) => setItemForm((s) => ({ ...s, tokenId: e.target.value }))}
+                placeholder="Token ID"
+                required
+              />
+            </div>
+            <input
+              className="btn"
+              style={{ cursor: "text" }}
+              value={itemForm.name}
+              onChange={(e) => setItemForm((s) => ({ ...s, name: e.target.value }))}
+              placeholder="Name"
+              required
+            />
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 8 }}>
+              <input
+                className="btn"
+                style={{ cursor: "text" }}
+                value={itemForm.collection}
+                onChange={(e) => setItemForm((s) => ({ ...s, collection: e.target.value }))}
+                placeholder="Collection name (optional)"
+              />
+              <input
+                className="btn"
+                style={{ cursor: "text" }}
+                value={itemForm.ownerId}
+                onChange={(e) => setItemForm((s) => ({ ...s, ownerId: e.target.value }))}
+                placeholder="Owner wallet (optional)"
+              />
+            </div>
+            <input
+              className="btn"
+              style={{ cursor: "text" }}
+              value={itemForm.image}
+              onChange={(e) => setItemForm((s) => ({ ...s, image: e.target.value }))}
+              placeholder="Image URL (optional)"
+            />
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 8 }}>
+              <select
+                className="btn"
+                value={itemForm.status}
+                onChange={(e) => setItemForm((s) => ({ ...s, status: e.target.value }))}
+                style={{ padding: "6px 12px" }}
+              >
+                <option value="owned">owned</option>
+                <option value="listed">listed</option>
+                <option value="auction">auction</option>
+              </select>
+              <input
+                className="btn"
+                style={{ cursor: "text" }}
+                value={itemForm.priceEth}
+                onChange={(e) => setItemForm((s) => ({ ...s, priceEth: e.target.value }))}
+                placeholder="Price (ETH)"
+                inputMode="decimal"
+              />
+            </div>
+            <textarea
+              className="btn"
+              style={{ cursor: "text", minHeight: 90, padding: 10 }}
+              value={itemForm.description}
+              onChange={(e) => setItemForm((s) => ({ ...s, description: e.target.value }))}
+              placeholder="Description (optional)"
+            />
+            {itemStatus.error ? <div style={{ color: "var(--red)" }}>{itemStatus.error}</div> : null}
+            {itemStatus.success ? <div style={{ color: "var(--green)" }}>{itemStatus.success}</div> : null}
+            <button className="btn primary" type="submit" disabled={itemStatus.isLoading}>
+              {itemStatus.isLoading ? "Saving..." : "Save"}
+            </button>
+          </form>
+
+          <div style={{ borderTop: "1px solid var(--border)", paddingTop: 12 }}>
+            {items.length === 0 ? (
+              <div style={{ color: "var(--muted)" }}>{itemsLoading ? "Loading..." : "No NFTs found"}</div>
+            ) : (
+              <div style={{ display: "grid", gap: 10 }}>
+                {items.map((a) => (
+                  <div key={a.id} style={{ padding: 12, border: "1px solid var(--border)", borderRadius: 8, background: "var(--bg-secondary)" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
+                      <div style={{ fontWeight: 700 }}>{a.name || `${a.contractAddress} / ${a.tokenId}`}</div>
+                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                        <button
+                          className="btn"
+                          type="button"
+                          onClick={() =>
+                            setItemForm({
+                              contractAddress: a.contractAddress || "",
+                              tokenId: a.tokenId || "",
+                              name: a.name || "",
+                              collection: a.collection || "",
+                              image: a.image || "",
+                              priceEth: String(a.priceEth ?? 0),
+                              ownerId: a.ownerId || a.owner || "",
+                              status: a.status || "owned",
+                              description: a.description || "",
+                            })
+                          }
+                        >
+                          Edit
+                        </button>
+                        <button className="btn" type="button" onClick={() => deleteItem(a.id)} disabled={itemStatus.isLoading}>
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                    <div style={{ fontSize: 12, color: "var(--muted)" }}>
+                      {truncateAddress(a.contractAddress)} / Token {a.tokenId}
+                    </div>
+                    <div style={{ display: "flex", gap: 14, flexWrap: "wrap", marginTop: 6 }}>
+                      <div style={{ fontSize: 12, color: "var(--muted)" }}>Status: {a.status || "—"}</div>
+                      <div style={{ fontSize: 12, color: "var(--muted)" }}>Price: {formatEth(a.priceEth)} ETH</div>
+                      <div style={{ fontSize: 12, color: "var(--muted)" }}>
+                        Owner: {a.owner ? truncateAddress(a.owner) : "—"}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      ) : null}
+
+      {activeTab === "collections" ? (
+        <div style={{ display: "grid", gap: 16 }}>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+            <input
+              className="btn"
+              style={{ cursor: "text", flex: "1 1 260px", minWidth: 0 }}
+              value={collectionsQuery}
+              onChange={(e) => setCollectionsQuery(e.target.value)}
+              placeholder="Search (name / contract / creator)"
+            />
+            <button className="btn" onClick={fetchAdminCollections} disabled={collectionsLoading}>
+              {collectionsLoading ? "Loading..." : "Refresh"}
+            </button>
+          </div>
+
+          <form onSubmit={submitAdminCollection} style={{ display: "grid", gap: 10 }}>
+            <div style={{ fontWeight: 700 }}>Add / Update Collection</div>
+            <input
+              className="btn"
+              style={{ cursor: "text" }}
+              value={adminCollectionForm.contractAddress}
+              onChange={(e) => setAdminCollectionForm((s) => ({ ...s, contractAddress: e.target.value }))}
+              placeholder="Contract address"
+              required
+            />
+            <input
+              className="btn"
+              style={{ cursor: "text" }}
+              value={adminCollectionForm.name}
+              onChange={(e) => setAdminCollectionForm((s) => ({ ...s, name: e.target.value }))}
+              placeholder="Name"
+              required
+            />
+            <input
+              className="btn"
+              style={{ cursor: "text" }}
+              value={adminCollectionForm.image}
+              onChange={(e) => setAdminCollectionForm((s) => ({ ...s, image: e.target.value }))}
+              placeholder="Image URL (optional)"
+            />
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 8 }}>
+              <input
+                className="btn"
+                style={{ cursor: "text" }}
+                value={adminCollectionForm.creatorId}
+                onChange={(e) => setAdminCollectionForm((s) => ({ ...s, creatorId: e.target.value }))}
+                placeholder="Creator wallet (optional)"
+              />
+              <input
+                className="btn"
+                style={{ cursor: "text" }}
+                value={adminCollectionForm.nextTokenId}
+                onChange={(e) => setAdminCollectionForm((s) => ({ ...s, nextTokenId: e.target.value }))}
+                placeholder="Next token ID (optional)"
+                inputMode="numeric"
+              />
+            </div>
+            <textarea
+              className="btn"
+              style={{ cursor: "text", minHeight: 90, padding: 10 }}
+              value={adminCollectionForm.description}
+              onChange={(e) => setAdminCollectionForm((s) => ({ ...s, description: e.target.value }))}
+              placeholder="Description (optional)"
+            />
+            {adminCollectionStatus.error ? <div style={{ color: "var(--red)" }}>{adminCollectionStatus.error}</div> : null}
+            {adminCollectionStatus.success ? <div style={{ color: "var(--green)" }}>{adminCollectionStatus.success}</div> : null}
+            <button className="btn primary" type="submit" disabled={adminCollectionStatus.isLoading}>
+              {adminCollectionStatus.isLoading ? "Saving..." : "Save"}
+            </button>
+          </form>
+
+          <div style={{ borderTop: "1px solid var(--border)", paddingTop: 12 }}>
+            {collections.length === 0 ? (
+              <div style={{ color: "var(--muted)" }}>{collectionsLoading ? "Loading..." : "No collections found"}</div>
+            ) : (
+              <div style={{ display: "grid", gap: 10 }}>
+                {collections.map((c) => (
+                  <div key={c.id} style={{ padding: 12, border: "1px solid var(--border)", borderRadius: 8, background: "var(--bg-secondary)" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
+                      <div style={{ fontWeight: 700 }}>{c.name || c.contractAddress || c.id}</div>
+                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                        <button
+                          className="btn"
+                          type="button"
+                          onClick={() =>
+                            setAdminCollectionForm({
+                              contractAddress: c.contractAddress || "",
+                              name: c.name || "",
+                              description: c.description || "",
+                              image: c.image || "",
+                              creatorId: c.creatorId || "",
+                              nextTokenId: c.nextTokenId == null ? "" : String(c.nextTokenId),
+                            })
+                          }
+                        >
+                          Edit
+                        </button>
+                        <button
+                          className="btn"
+                          type="button"
+                          onClick={() => deleteAdminCollection(c.id)}
+                          disabled={adminCollectionStatus.isLoading}
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                    <div style={{ fontSize: 12, color: "var(--muted)" }}>
+                      Contract: {c.contractAddress ? truncateAddress(c.contractAddress) : "—"}
+                    </div>
+                    <div style={{ display: "flex", gap: 14, flexWrap: "wrap", marginTop: 6 }}>
+                      <div style={{ fontSize: 12, color: "var(--muted)" }}>
+                        Creator: {c.creatorId ? truncateAddress(c.creatorId) : "—"}
+                      </div>
+                      <div style={{ fontSize: 12, color: "var(--muted)" }}>Next token: {c.nextTokenId ?? "—"}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       ) : null}
 
@@ -1008,21 +1954,55 @@ export default function AdminDashboard() {
             {featuredAssets.length === 0 ? (
               <div style={{ color: "var(--muted)" }}>No featured assets</div>
             ) : (
-              <div style={{ display: "grid", gap: 10 }}>
-                {featuredAssets.map((a) => (
-                  <div key={a.id} style={{ padding: 12, border: "1px solid var(--border)", borderRadius: 8, background: "var(--bg-secondary)" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
-                      <div style={{ fontWeight: 700 }}>{a.name}</div>
-                      <button className="btn" onClick={() => deleteFeaturedAsset(a.id)} disabled={assetStatus.isLoading}>
-                        Delete
-                      </button>
-                    </div>
-                    <div style={{ fontSize: 12, color: "var(--muted)" }}>
-                      {truncateAddress(a.contractAddress)} / Token {a.tokenId}
-                    </div>
-                    <div style={{ fontSize: 12, color: "var(--muted)" }}>Order: {a.order ?? 0}</div>
-                  </div>
-                ))}
+              <div
+                style={{
+                  overflowX: "auto",
+                  border: "1px solid rgba(255, 255, 255, 0.08)",
+                  borderRadius: 14,
+                  background: "rgba(0, 0, 0, 0.18)",
+                }}
+              >
+                <table style={{ width: "100%", minWidth: 820, borderCollapse: "separate", borderSpacing: 0 }}>
+                  <thead>
+                    <tr style={{ background: "rgba(255, 255, 255, 0.02)" }}>
+                      <th style={{ textAlign: "left", padding: "10px 12px", fontSize: 11, color: "rgba(255,255,255,0.55)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+                        NFT
+                      </th>
+                      <th style={{ textAlign: "left", padding: "10px 12px", fontSize: 11, color: "rgba(255,255,255,0.55)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+                        Contract / Token
+                      </th>
+                      <th style={{ textAlign: "right", padding: "10px 12px", fontSize: 11, color: "rgba(255,255,255,0.55)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+                        Order
+                      </th>
+                      <th style={{ textAlign: "right", padding: "10px 12px", fontSize: 11, color: "rgba(255,255,255,0.55)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+                        Action
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {featuredAssets.map((a) => (
+                      <tr key={a.id}>
+                        <td style={{ padding: "10px 12px", borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+                          <div style={{ fontWeight: 800, fontSize: 13 }}>{a.name}</div>
+                          {a.collection ? <div style={{ fontSize: 12, color: "rgba(255,255,255,0.55)" }}>{a.collection}</div> : null}
+                        </td>
+                        <td style={{ padding: "10px 12px", borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+                          <div style={{ fontFamily: "monospace", fontSize: 12 }}>
+                            {truncateAddress(a.contractAddress)} · #{a.tokenId}
+                          </div>
+                        </td>
+                        <td style={{ padding: "10px 12px", borderTop: "1px solid rgba(255,255,255,0.06)", textAlign: "right", fontVariantNumeric: "tabular-nums" }}>
+                          {a.order ?? 0}
+                        </td>
+                        <td style={{ padding: "10px 12px", borderTop: "1px solid rgba(255,255,255,0.06)", textAlign: "right" }}>
+                          <button className="btn" onClick={() => deleteFeaturedAsset(a.id)} disabled={assetStatus.isLoading}>
+                            Delete
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             )}
           </div>
@@ -1091,22 +2071,58 @@ export default function AdminDashboard() {
             {featuredCollections.length === 0 ? (
               <div style={{ color: "var(--muted)" }}>No featured collections</div>
             ) : (
-              <div style={{ display: "grid", gap: 10 }}>
-                {featuredCollections.map((c) => (
-                  <div key={c.id} style={{ padding: 12, border: "1px solid var(--border)", borderRadius: 8, background: "var(--bg-secondary)" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
-                      <div style={{ fontWeight: 700 }}>{c.name}</div>
-                      <button className="btn" onClick={() => deleteFeaturedCollection(c.id)} disabled={collectionStatus.isLoading}>
-                        Delete
-                      </button>
-                    </div>
-                    <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginTop: 6 }}>
-                      <div style={{ fontSize: 12, color: "var(--muted)" }}>Floor: {formatEth(c.floor)} ETH</div>
-                      <div style={{ fontSize: 12, color: "var(--muted)" }}>Delta: {Number(c.delta || 0).toFixed(2)}%</div>
-                      <div style={{ fontSize: 12, color: "var(--muted)" }}>Order: {c.order ?? 0}</div>
-                    </div>
-                  </div>
-                ))}
+              <div
+                style={{
+                  overflowX: "auto",
+                  border: "1px solid rgba(255, 255, 255, 0.08)",
+                  borderRadius: 14,
+                  background: "rgba(0, 0, 0, 0.18)",
+                }}
+              >
+                <table style={{ width: "100%", minWidth: 820, borderCollapse: "separate", borderSpacing: 0 }}>
+                  <thead>
+                    <tr style={{ background: "rgba(255, 255, 255, 0.02)" }}>
+                      <th style={{ textAlign: "left", padding: "10px 12px", fontSize: 11, color: "rgba(255,255,255,0.55)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+                        Collection
+                      </th>
+                      <th style={{ textAlign: "right", padding: "10px 12px", fontSize: 11, color: "rgba(255,255,255,0.55)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+                        Floor
+                      </th>
+                      <th style={{ textAlign: "right", padding: "10px 12px", fontSize: 11, color: "rgba(255,255,255,0.55)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+                        Delta
+                      </th>
+                      <th style={{ textAlign: "right", padding: "10px 12px", fontSize: 11, color: "rgba(255,255,255,0.55)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+                        Order
+                      </th>
+                      <th style={{ textAlign: "right", padding: "10px 12px", fontSize: 11, color: "rgba(255,255,255,0.55)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+                        Action
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {featuredCollections.map((c) => (
+                      <tr key={c.id}>
+                        <td style={{ padding: "10px 12px", borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+                          <div style={{ fontWeight: 800, fontSize: 13 }}>{c.name}</div>
+                        </td>
+                        <td style={{ padding: "10px 12px", borderTop: "1px solid rgba(255,255,255,0.06)", textAlign: "right", fontVariantNumeric: "tabular-nums" }}>
+                          {formatEth(c.floor)} ETH
+                        </td>
+                        <td style={{ padding: "10px 12px", borderTop: "1px solid rgba(255,255,255,0.06)", textAlign: "right", fontVariantNumeric: "tabular-nums" }}>
+                          {Number(c.delta || 0).toFixed(2)}%
+                        </td>
+                        <td style={{ padding: "10px 12px", borderTop: "1px solid rgba(255,255,255,0.06)", textAlign: "right", fontVariantNumeric: "tabular-nums" }}>
+                          {c.order ?? 0}
+                        </td>
+                        <td style={{ padding: "10px 12px", borderTop: "1px solid rgba(255,255,255,0.06)", textAlign: "right" }}>
+                          <button className="btn" onClick={() => deleteFeaturedCollection(c.id)} disabled={collectionStatus.isLoading}>
+                            Delete
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             )}
           </div>
@@ -1200,6 +2216,65 @@ export default function AdminDashboard() {
               {mintingLoading ? "Minting..." : "Mint NFT"}
             </button>
           </form>
+        </div>
+      ) : null}
+        </div>
+      </div>
+
+      {toasts.length ? (
+        <div className="admin-toasts" aria-live="polite" aria-relevant="additions removals">
+          {toasts.map((t) => (
+            <div
+              key={t.id}
+              className={`admin-toast ${t.type}`}
+              onClick={() => setToasts((prev) => prev.filter((x) => x.id !== t.id))}
+              role="status"
+            >
+              {t.message}
+            </div>
+          ))}
+        </div>
+      ) : null}
+
+      {confirmState ? (
+        <div
+          className="admin-modal-backdrop"
+          role="dialog"
+          aria-modal="true"
+          aria-label={confirmState.title || "Confirm"}
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget) {
+              confirmState.resolve(false);
+              setConfirmState(null);
+            }
+          }}
+        >
+          <div className="admin-modal">
+            <div style={{ fontWeight: 900, fontSize: 14, marginBottom: 8 }}>{confirmState.title}</div>
+            <div style={{ color: "rgba(255,255,255,0.70)", fontSize: 13, marginBottom: 14 }}>{confirmState.message}</div>
+            <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", flexWrap: "wrap" }}>
+              <button
+                className="btn"
+                type="button"
+                onClick={() => {
+                  confirmState.resolve(false);
+                  setConfirmState(null);
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                className="btn primary"
+                type="button"
+                onClick={() => {
+                  confirmState.resolve(true);
+                  setConfirmState(null);
+                }}
+              >
+                {confirmState.confirmText}
+              </button>
+            </div>
+          </div>
         </div>
       ) : null}
     </div>

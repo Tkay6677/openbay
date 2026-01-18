@@ -5,6 +5,7 @@ import { useState, useEffect, useRef } from "react";
 import { useWalletConnection } from "../lib/hooks/useWallet";
 import { useAuth } from "../lib/hooks/useAuth";
 import { truncateAddress } from "../lib/utils";
+import MobileDrawer from "./MobileDrawer";
 
 export default function NavBar() {
   const router = useRouter();
@@ -14,15 +15,38 @@ export default function NavBar() {
   const [walletError, setWalletError] = useState(null);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
-  const [loginStep, setLoginStep] = useState("chooser");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPasswordField, setShowPasswordField] = useState(false);
   const [name, setName] = useState("");
   const [isSignUp, setIsSignUp] = useState(false);
   const [isAuthActionLoading, setIsAuthActionLoading] = useState(false);
   const [authError, setAuthError] = useState(null);
   const [authInfo, setAuthInfo] = useState(null);
   const menuRef = useRef(null);
+  const passwordInputRef = useRef(null);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search || "");
+    const shouldOpen = ["1", "true", "yes"].includes(String(params.get("login") || "").toLowerCase()) || ["1", "true", "yes"].includes(String(params.get("auth") || "").toLowerCase());
+    if (!shouldOpen) return;
+
+    setEmail("");
+    setPassword("");
+    setShowPasswordField(false);
+    setName("");
+    setIsSignUp(false);
+    setAuthError(null);
+    setAuthInfo(null);
+    setShowLoginModal(true);
+
+    params.delete("login");
+    params.delete("auth");
+    const nextSearch = params.toString();
+    const nextUrl = `${window.location.pathname}${nextSearch ? `?${nextSearch}` : ""}${window.location.hash || ""}`;
+    router.replace(nextUrl);
+  }, [router]);
 
   // Close menu when clicking outside
   useEffect(() => {
@@ -80,14 +104,26 @@ export default function NavBar() {
   };
 
   const getCallbackUrl = () => {
-    if (typeof window !== "undefined") {
-      return `${window.location.pathname || "/"}${window.location.search || ""}`;
+    if (typeof window === "undefined") return pathname || "/";
+
+    const url = new URL(window.location.href);
+    const callbackParam = url.searchParams.get("callbackUrl");
+    if (callbackParam) {
+      try {
+        if (callbackParam.startsWith("/")) return callbackParam;
+        const cb = new URL(callbackParam, window.location.origin);
+        if (cb.origin === window.location.origin) return `${cb.pathname}${cb.search}${cb.hash}`;
+      } catch {}
     }
-    return pathname || "/";
+
+    url.searchParams.delete("login");
+    url.searchParams.delete("auth");
+    url.searchParams.delete("callbackUrl");
+    const search = url.searchParams.toString();
+    return `${url.pathname}${search ? `?${search}` : ""}${url.hash || ""}` || "/";
   };
 
-  const onEmailPasswordSubmit = async (e) => {
-    e.preventDefault();
+  const submitEmailPassword = async () => {
     setAuthError(null);
     setAuthInfo(null);
     setIsAuthActionLoading(true);
@@ -156,46 +192,47 @@ export default function NavBar() {
   };
 
   return (
-    <nav className="nav">
-      <div className="nav-topbar">
-        <div className="container nav-topbar-inner">
-          <span>Can’t find what you’re looking for? Checkout our documentations.</span>
-          <a href="https://docs.cosmos.com/" target="_blank" rel="noreferrer">
-            Go to https://docs.cosmos.com/
-          </a>
-        </div>
-      </div>
-      <div className="nav-main">
-        <div className="container nav-main-inner">
-          <div className="nav-left">
-            <button
-              className="icon-btn mobile-only"
-              aria-label="Menu"
-              onClick={() => typeof window !== "undefined" && window.dispatchEvent(new Event("open-drawer"))}
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-                <path d="M4 6h16M4 12h16M4 18h16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-              </svg>
-            </button>
-            <Link href="/" aria-label="Cosmos home" className="nav-logo">
-              <span className="logo" />
-              <span className="nav-logo-text desktop-only">Cosmos</span>
-            </Link>
-            <div className="nav-links desktop-only" aria-label="Primary navigation">
-              <Link href="/explore" className="nav-link">
-                Explore
-              </Link>
-              <Link href="/mint" className="nav-link">
-                Mint
-              </Link>
-              <Link href="/mint" className="nav-link">
-                Create
-              </Link>
-              <Link href="/wallet" className="nav-link">
-                Swap
-              </Link>
-            </div>
+    <>
+      <nav className="nav">
+        <div className="nav-topbar">
+          <div className="container nav-topbar-inner">
+            <span>Can’t find what you’re looking for? Checkout our documentations.</span>
+            <a href="https://docs.cosmos.com/" target="_blank" rel="noreferrer">
+              Go to https://docs.cosmos.com/
+            </a>
           </div>
+        </div>
+        <div className="nav-main">
+          <div className="container nav-main-inner">
+            <div className="nav-left">
+              <button
+                className="icon-btn mobile-only"
+                aria-label="Menu"
+                onClick={() => typeof window !== "undefined" && window.dispatchEvent(new Event("open-drawer"))}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                  <path d="M4 6h16M4 12h16M4 18h16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                </svg>
+              </button>
+              <Link href="/" aria-label="Cosmos home" className="nav-logo">
+                <span className="logo" />
+                <span className="nav-logo-text desktop-only">Cosmos</span>
+              </Link>
+              <div className="nav-links desktop-only" aria-label="Primary navigation">
+                <Link href="/explore" className="nav-link">
+                  Explore
+                </Link>
+                <Link href="/mint" className="nav-link">
+                  Mint
+                </Link>
+                <Link href="/mint" className="nav-link">
+                  Create
+                </Link>
+                <Link href="/wallet" className="nav-link">
+                  Swap
+                </Link>
+              </div>
+            </div>
 
           <div className="nav-center desktop-only" role="search">
             <div className="nav-search">
@@ -262,9 +299,9 @@ export default function NavBar() {
                 onClick={() => {
                   setEmail("");
                   setPassword("");
+                  setShowPasswordField(false);
                   setName("");
                   setIsSignUp(false);
-                  setLoginStep("chooser");
                   setAuthError(null);
                   setAuthInfo(null);
                   setShowLoginModal(true);
@@ -287,237 +324,228 @@ export default function NavBar() {
         </div>
       </div>
 
-      {showLoginModal && !isAuthenticated ? (
-        <div
-          className="login-modal-backdrop"
-          role="presentation"
-          onMouseDown={(e) => {
-            if (e.target === e.currentTarget) setShowLoginModal(false);
-          }}
-        >
-          <div className="login-modal" role="dialog" aria-modal="true" aria-label="Log in or sign up">
-            <button type="button" className="login-modal-close" aria-label="Close" onClick={() => setShowLoginModal(false)}>
-              <span aria-hidden>×</span>
-            </button>
+        {showLoginModal && !isAuthenticated ? (
+          <div
+            className="login-modal-backdrop"
+            role="presentation"
+            onMouseDown={(e) => {
+              if (e.target === e.currentTarget) setShowLoginModal(false);
+            }}
+          >
+            <div className="login-modal" role="dialog" aria-modal="true" aria-label="Log in or sign up">
+              <button type="button" className="login-modal-close" aria-label="Close" onClick={() => setShowLoginModal(false)}>
+                <span aria-hidden>×</span>
+              </button>
 
             <div className="login-modal-title">Log in or sign up</div>
 
             <div className="login-modal-logo" aria-hidden>
-              <span className="login-modal-logo-text">R</span>
+              <span className="login-modal-logo-text">C</span>
             </div>
 
-            {loginStep === "chooser" ? (
-              <>
-                <form
-                  className="login-email"
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    if (!String(email || "").trim()) return;
-                    setAuthError(null);
-                    setAuthInfo(null);
-                    setLoginStep("auth");
-                  }}
-                >
-                  <div className="login-email-field">
-                    <div className="login-email-icon" aria-hidden>
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-                        <path d="M4 6h16v12H4V6Z" stroke="currentColor" strokeWidth="2" />
-                        <path d="m4 7 8 6 8-6" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
-                      </svg>
-                    </div>
-                    <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="your@email.com" type="email" autoComplete="email" />
-                    <button type="submit">Submit</button>
-                  </div>
-                </form>
-
-                <div className="login-options">
-                  <button
-                    type="button"
-                    className="login-option"
-                    onClick={() => {
-                      setAuthError(null);
-                      setAuthInfo(null);
-                      setLoginStep("auth");
-                    }}
-                  >
-                    <span className="login-option-icon" aria-hidden>
-                      <span className="login-option-badge">V</span>
-                    </span>
-                    <span>VeeFriends Wallet</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    className="login-option"
-                    onClick={async () => {
-                      await onConnect();
-                      setShowLoginModal(false);
-                    }}
-                  >
-                    <span className="login-option-icon" aria-hidden>
-                      <span className="login-option-badge mm">M</span>
-                    </span>
-                    <span>MetaMask</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    className="login-option"
-                    onClick={() => {
-                      setAuthError(null);
-                      setAuthInfo(null);
-                      setLoginStep("auth");
-                    }}
-                  >
-                    <span className="login-option-icon" aria-hidden>
-                      <span className="login-option-badge okx">O</span>
-                    </span>
-                    <span>OKX Wallet</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    className="login-option"
-                    onClick={() => {
-                      setAuthError(null);
-                      setAuthInfo(null);
-                      setLoginStep("auth");
-                    }}
-                  >
-                    <span className="login-option-icon" aria-hidden>
-                      <span className="login-option-badge">+</span>
-                    </span>
-                    <span>More options</span>
-                  </button>
-                </div>
-
-                <button
-                  type="button"
-                  className="login-passkey"
-                  onClick={() => {
-                    setAuthError(null);
-                    setAuthInfo(null);
-                    setLoginStep("auth");
-                  }}
-                >
-                  I have a passkey
-                </button>
-              </>
-            ) : (
-              <div className="login-auth">
-                <div className="login-auth-top">
-                  <button type="button" className="login-auth-back" onClick={() => setLoginStep("chooser")} disabled={isAuthActionLoading}>
-                    Back
-                  </button>
-                  <div style={{ fontSize: 12, color: "rgba(255, 255, 255, 0.55)" }}>{isSignUp ? "Create account" : "Sign in"}</div>
-                  <div style={{ width: 52 }} />
-                </div>
-
-                {authError ? (
-                  <div
-                    className="login-auth-card"
-                    style={{
-                      borderColor: "rgba(239, 68, 68, 0.55)",
-                      background: "rgba(239, 68, 68, 0.06)",
-                      color: "rgba(239, 68, 68, 0.95)",
-                    }}
-                  >
-                    {authError}
-                  </div>
-                ) : null}
-
-                {authInfo ? (
-                  <div
-                    className="login-auth-card"
-                    style={{
-                      borderColor: "rgba(45, 212, 191, 0.45)",
-                      background: "rgba(45, 212, 191, 0.08)",
-                      color: "rgba(45, 212, 191, 0.95)",
-                    }}
-                  >
-                    {authInfo}
-                  </div>
-                ) : null}
-
-                <div className="login-auth-card">
-                  <div className="login-auth-card-title">Continue with Google</div>
-                  <button className="btn primary" type="button" onClick={onGoogle} disabled={isAuthActionLoading} style={{ width: "100%" }}>
-                    Continue with Google
-                  </button>
-                </div>
-
-                <div className="login-auth-or">
-                  <div className="login-auth-or-line" />
-                  <div className="login-auth-or-text">OR</div>
-                  <div className="login-auth-or-line" />
-                </div>
-
-                <div className="login-auth-card">
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
-                    <div className="login-auth-card-title" style={{ marginBottom: 0 }}>
-                      Email & Password
-                    </div>
-                    <button
-                      className="btn"
-                      onClick={() => {
-                        setIsSignUp(!isSignUp);
-                        setAuthError(null);
-                        setAuthInfo(null);
-                      }}
-                      type="button"
-                      disabled={isAuthActionLoading}
-                      style={{ padding: "4px 8px", fontSize: 12 }}
-                    >
-                      {isSignUp ? "Sign in" : "Sign up"}
-                    </button>
-                  </div>
-
-                  <form onSubmit={onEmailPasswordSubmit} className="login-auth-form">
-                    {isSignUp ? (
-                      <input
-                        className="login-auth-input"
-                        type="text"
-                        value={name}
-                        onChange={(e) => setName(e.target.value)}
-                        placeholder="Name (optional)"
-                        autoComplete="name"
-                      />
-                    ) : null}
-                    <input className="login-auth-input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" required autoComplete="email" />
-                    <input
-                      className="login-auth-input"
-                      type="password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder="Password"
-                      required
-                      autoComplete={isSignUp ? "new-password" : "current-password"}
-                    />
-                    <button className="btn primary" type="submit" disabled={isAuthActionLoading} style={{ width: "100%" }}>
-                      {isAuthActionLoading ? "Processing..." : isSignUp ? "Sign Up" : "Sign In"}
-                    </button>
-                  </form>
-
-                  <div className="login-auth-small-actions">
-                    <button className="btn" type="button" onClick={() => setAuthInfo("Password reset is not set up yet.")} disabled={isAuthActionLoading}>
-                      Forgot password?
-                    </button>
-                    <button
-                      className="btn"
-                      type="button"
-                      onClick={() => {
-                        setIsSignUp(true);
-                        setAuthError(null);
-                        setAuthInfo(null);
-                      }}
-                      disabled={isAuthActionLoading}
-                    >
-                      Sign Up
-                    </button>
-                  </div>
-                </div>
+            {authError ? (
+              <div
+                className="login-auth-card"
+                style={{
+                  borderColor: "rgba(239, 68, 68, 0.55)",
+                  background: "rgba(239, 68, 68, 0.06)",
+                  color: "rgba(239, 68, 68, 0.95)",
+                  marginBottom: 14,
+                }}
+              >
+                {authError}
               </div>
-            )}
+            ) : null}
+
+            {authInfo ? (
+              <div
+                className="login-auth-card"
+                style={{
+                  borderColor: "rgba(45, 212, 191, 0.45)",
+                  background: "rgba(45, 212, 191, 0.08)",
+                  color: "rgba(45, 212, 191, 0.95)",
+                  marginBottom: 14,
+                }}
+              >
+                {authInfo}
+              </div>
+            ) : null}
+
+            <div className="login-auth-card">
+              <div className="login-auth-card-title">Continue with Google</div>
+              <button className="btn primary" type="button" onClick={onGoogle} disabled={isAuthActionLoading} style={{ width: "100%" }}>
+                Continue with Google
+              </button>
+            </div>
+
+            <div className="login-auth-or">
+              <div className="login-auth-or-line" />
+              <div className="login-auth-or-text">OR</div>
+              <div className="login-auth-or-line" />
+            </div>
+
+            <div className="login-auth-card">
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
+                <div className="login-auth-card-title" style={{ marginBottom: 0 }}>
+                  Email & Password
+                </div>
+                <button
+                  className="btn"
+                  onClick={() => {
+                    setIsSignUp(!isSignUp);
+                    setAuthError(null);
+                    setAuthInfo(null);
+                    setShowPasswordField(true);
+                    setTimeout(() => passwordInputRef.current?.focus?.(), 0);
+                  }}
+                  type="button"
+                  disabled={isAuthActionLoading}
+                  style={{ padding: "4px 8px", fontSize: 12 }}
+                >
+                  {isSignUp ? "Sign in" : "Sign up"}
+                </button>
+              </div>
+
+              <form
+                className="login-auth-form"
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  const trimmedEmail = String(email || "").trim();
+                  if (!trimmedEmail) return;
+
+                  if (!showPasswordField) {
+                    setAuthError(null);
+                    setAuthInfo(null);
+                    setShowPasswordField(true);
+                    setTimeout(() => passwordInputRef.current?.focus?.(), 0);
+                    return;
+                  }
+
+                  if (!String(password || "").trim()) return;
+                  await submitEmailPassword();
+                }}
+              >
+                {isSignUp && showPasswordField ? (
+                  <input
+                    className="login-auth-input"
+                    type="text"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="Name (optional)"
+                    autoComplete="name"
+                  />
+                ) : null}
+
+                <input
+                  className="login-auth-input"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="Email"
+                  required
+                  autoComplete="email"
+                />
+
+                {showPasswordField ? (
+                  <input
+                    ref={passwordInputRef}
+                    className="login-auth-input"
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Password"
+                    required
+                    autoComplete={isSignUp ? "new-password" : "current-password"}
+                  />
+                ) : null}
+
+                <button className="btn primary" type="submit" disabled={isAuthActionLoading} style={{ width: "100%" }}>
+                  {isAuthActionLoading ? "Processing..." : showPasswordField ? (isSignUp ? "Sign Up" : "Sign In") : "Submit"}
+                </button>
+              </form>
+
+              {showPasswordField ? (
+                <div className="login-auth-small-actions">
+                  <button className="btn" type="button" onClick={() => setAuthInfo("Password reset is not set up yet.")} disabled={isAuthActionLoading}>
+                    Forgot password?
+                  </button>
+                  <button
+                    className="btn"
+                    type="button"
+                    onClick={() => {
+                      setIsSignUp(true);
+                      setAuthError(null);
+                      setAuthInfo(null);
+                    }}
+                    disabled={isAuthActionLoading}
+                  >
+                    Sign Up
+                  </button>
+                </div>
+              ) : null}
+            </div>
+
+            {/* <div className="login-options">
+              <button
+                type="button"
+                className="login-option"
+                onClick={() => setAuthInfo("This option is not set up yet.")}
+                disabled={isAuthActionLoading}
+              >
+                <span className="login-option-icon" aria-hidden>
+                  <span className="login-option-badge">V</span>
+                </span>
+                <span>VeeFriends Wallet</span>
+              </button>
+
+              <button
+                type="button"
+                className="login-option"
+                onClick={async () => {
+                  await onConnect();
+                  setShowLoginModal(false);
+                }}
+                disabled={isConnecting}
+              >
+                <span className="login-option-icon" aria-hidden>
+                  <span className="login-option-badge mm">M</span>
+                </span>
+                <span>MetaMask</span>
+              </button>
+
+              <button
+                type="button"
+                className="login-option"
+                onClick={() => setAuthInfo("This option is not set up yet.")}
+                disabled={isAuthActionLoading}
+              >
+                <span className="login-option-icon" aria-hidden>
+                  <span className="login-option-badge okx">O</span>
+                </span>
+                <span>OKX Wallet</span>
+              </button>
+
+              <button
+                type="button"
+                className="login-option"
+                onClick={() => setAuthInfo("This option is not set up yet.")}
+                disabled={isAuthActionLoading}
+              >
+                <span className="login-option-icon" aria-hidden>
+                  <span className="login-option-badge">+</span>
+                </span>
+                <span>More options</span>
+              </button>
+            </div> */}
+
+            <button
+              type="button"
+              className="login-passkey"
+              onClick={() => setAuthInfo("Passkey login is not set up yet.")}
+              disabled={isAuthActionLoading}
+            >
+              I have a passkey
+            </button>
 
             <div className="login-legal">
               <span>By logging in I agree to the </span>
@@ -534,9 +562,11 @@ export default function NavBar() {
               <span>Protected by</span>
               <span className="login-powered-pill">privy</span>
             </div>
+            </div>
           </div>
-        </div>
-      ) : null}
-    </nav>
+        ) : null}
+      </nav>
+      <MobileDrawer />
+    </>
   );
 }
