@@ -2,7 +2,7 @@ import Link from "next/link";
 import NavBar from "../../../components/NavBar";
 import Footer from "../../../components/Footer";
 import { getDb } from "../../../lib/db";
-import { truncateAddress } from "../../../lib/utils";
+import { truncateAddress, NFT_PLACEHOLDER_SRC } from "../../../lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -64,7 +64,7 @@ export default async function CollectionDetailPage({ params, searchParams }) {
     tokenId: String(a.tokenId || ""),
     tokenIdNum: Number.isFinite(Number(a.tokenIdNum)) ? Number(a.tokenIdNum) : Number(a.tokenId),
     name: a.name || `NFT #${a.tokenId}`,
-    image: a.image || "/placeholder-nft.png",
+    image: a.image || null,
     priceEth: Number(a.priceEth || 0),
     status: a.status || "owned",
     owner: a.owner || a.ownerId || null,
@@ -176,7 +176,7 @@ export default async function CollectionDetailPage({ params, searchParams }) {
             {filtered.map((a) => (
               <Link key={`${contractAddress}-${a.tokenId}`} href={`/asset/${contractAddress}/${a.tokenId}`} className="collection-item-card">
                 <div className="collection-item-media">
-                  <img src={a.image} alt={a.name} loading="lazy" />
+                  <img src={a.image || NFT_PLACEHOLDER_SRC} alt={a.name} loading="lazy" />
                 </div>
                 <div className="collection-item-meta">
                   <div className="collection-item-title">{a.name}</div>

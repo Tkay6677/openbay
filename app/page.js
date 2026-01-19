@@ -1,309 +1,181 @@
-"use client";
+import Link from "next/link";
 import NavBar from "../components/NavBar";
 import Footer from "../components/Footer";
-import Sidebar from "../components/Sidebar";
-import RightRail from "../components/RightRail";
-import ControlsBar from "../components/ControlsBar";
-import AssetCard from "../components/AssetCard";
-import HeroCarousel from "../components/HeroCarousel";
-import TokenCarousel from "../components/TokenCarousel";
-import TokenCard from "../components/TokenCard";
-import MobileCollections from "../components/MobileCollections";
-import Sparkline from "../components/Sparkline";
-import { useEffect, useState } from "react";
-import trendingData from "../trending.json";
 
-const mockTokens = [
-  {
-    image: "https://picsum.photos/seed/eth/120/120",
-    name: "Ethereum",
-    symbol: "ETH",
-    price: 2800.5,
-    change: 2.3,
-    spark: [2750, 2780, 2820, 2790, 2810, 2800],
-  },
-  {
-    image: "https://picsum.photos/seed/btc/120/120",
-    name: "Bitcoin",
-    symbol: "BTC",
-    price: 43500.25,
-    change: -1.1,
-    spark: [44050, 43900, 43780, 43620, 43480, 43500],
-  },
-  {
-    image: "https://picsum.photos/seed/sol/120/120",
-    name: "Solana",
-    symbol: "SOL",
-    price: 98.42,
-    change: 4.8,
-    spark: [92, 93.5, 95.2, 97.1, 98.9, 98.4],
-  },
-  {
-    image: "https://picsum.photos/seed/base/120/120",
-    name: "Base",
-    symbol: "BASE",
-    price: 0.8543,
-    change: -0.7,
-    spark: [0.86, 0.858, 0.855, 0.852, 0.853, 0.854],
-  },
-  {
-    image: "https://picsum.photos/seed/arb/120/120",
-    name: "Arbitrum",
-    symbol: "ARB",
-    price: 1.7321,
-    change: 1.9,
-    spark: [1.69, 1.7, 1.72, 1.71, 1.74, 1.73],
-  },
+const stats = [
+  { label: "24h Volume", value: "$2.4M" },
+  { label: "Active Traders", value: "18,402" },
+  { label: "Collections", value: "1,120" },
+  { label: "NFTs Listed", value: "72,009" },
 ];
 
-export default function HomePage() {
-  const [featured, setFeatured] = useState([]);
-  const [newListings, setNewListings] = useState([]);
-  const [newListingsLoading, setNewListingsLoading] = useState(true);
-  const [heroBanners, setHeroBanners] = useState([]);
-  const [expanded, setExpanded] = useState(false);
-  const [trendingRange, setTrendingRange] = useState("24h");
-  const trustedBy = ["base", "Barbie", "Paris", "Ubisoft", "FOX Deportes", "rekt", "UFC", "Universal", "Hot Wheels", "LEDGER"];
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const res = await fetch("/api/assets");
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok) return;
-        const list = Array.isArray(data.assets) ? data.assets : [];
-        if (!cancelled) setFeatured(list.slice(0, 6));
-      } catch {}
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  useEffect(() => {
-    let cancelled = false;
-    setNewListingsLoading(true);
-    (async () => {
-      try {
-        const res = await fetch("/api/assets?listed=true&limit=12");
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok) return;
-        const list = Array.isArray(data.assets) ? data.assets : [];
-        if (!cancelled) setNewListings(list);
-      } catch {
-        if (!cancelled) setNewListings([]);
-      } finally {
-        if (!cancelled) setNewListingsLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const res = await fetch("/api/hero-banners?limit=5");
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok) return;
-        const list = Array.isArray(data.banners) ? data.banners : [];
-        if (!cancelled) setHeroBanners(list);
-      } catch {}
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  const formatCompactUSD = (value) => {
-    const n = typeof value === "number" ? value : Number(value);
-    if (!Number.isFinite(n)) return "$0";
-    const abs = Math.abs(n);
-    if (abs >= 1_000_000_000) return `$${(n / 1_000_000_000).toFixed(1)}B`;
-    if (abs >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M`;
-    if (abs >= 1_000) return `$${(n / 1_000).toFixed(1)}K`;
-    return `$${Math.round(n).toLocaleString()}`;
-  };
-
-  const formatFloorUSD = (value) => {
-    const n = typeof value === "number" ? value : Number(value);
-    if (!Number.isFinite(n)) return "$0";
-    if (Math.abs(n) >= 10_000) return formatCompactUSD(n);
-    return `$${Math.round(n).toLocaleString()}`;
-  };
-
-  const formatPct = (value) => {
-    const n = typeof value === "number" ? value : Number(value);
-    if (!Number.isFinite(n)) return "—";
-    const sign = n > 0 ? "+" : "";
-    return `${sign}${n.toFixed(1)}%`;
-  };
-
+export default function LandingPage() {
   return (
     <>
-      <NavBar />
-      <ControlsBar />
-      <div className="container" style={{ paddingTop: 12 }}>
-        <div className={`layout ${expanded ? "expanded" : "collapsed"}`}>
-          <Sidebar expanded={expanded} onToggle={() => setExpanded((v) => !v)} />
-          <main>
-            <HeroCarousel items={heroBanners} />
-            <div style={{ marginTop: 14 }}>
-              <div className="desktop-only">
-                <div className="token-strip">
-                  {mockTokens.slice(0, 4).map((t) => (
-                    <TokenCard key={t.symbol} token={t} />
-                  ))}
-                </div>
-              </div>
-              <div className="mobile-only">
-                <TokenCarousel tokens={mockTokens} intervalMs={5000} />
-              </div>
-            </div>
-            <MobileCollections />
-
-            <div className="section">
-              <h2>Featured Collections</h2>
-              {featured.length === 0 ? (
-                <div style={{ color: "var(--muted)" }}>No featured NFTs yet</div>
-              ) : (
-                <div className="grid">
-                  {featured.map((a) => (
-                    <AssetCard key={`featured-${a.contractAddress}-${a.tokenId}`} asset={a} />
-                  ))}
-                </div>
-              )}
-            </div>
-
-            <div className="section">
-              <h2>New Listings</h2>
-              {newListingsLoading ? (
-                <div style={{ color: "var(--muted)" }}>Loading new listings...</div>
-              ) : newListings.length === 0 ? (
-                <div style={{ color: "var(--muted)" }}>No new listings yet</div>
-              ) : (
-                <div className="grid">
-                  {newListings.map((a) => (
-                    <AssetCard key={`new-${a.contractAddress}-${a.tokenId}`} asset={a} />
-                  ))}
-                </div>
-              )}
-            </div>
-
-            <div className="section trending">
-              <div className="trending-header">
-                <h2>Trending</h2>
-                <div className="trending-controls">
-                  <button className="btn trending-list-btn">List collection</button>
-                  <div className="trending-ranges" role="tablist" aria-label="Trending range">
-                    {["1h", "6h", "24h", "7d", "30d"].map((r) => (
-                      <button
-                        key={r}
-                        type="button"
-                        className={`trending-range-btn${trendingRange === r ? " active" : ""}`}
-                        onClick={() => setTrendingRange(r)}
-                        aria-selected={trendingRange === r}
-                      >
-                        {r}
-                      </button>
-                    ))}
-                  </div>
-                </div>
+      <NavBar variant="landing" />
+      <main className="landing">
+        <section className="landing-hero">
+          <div className="container landing-hero-inner">
+            <div>
+              <div className="landing-eyebrow">Cosmos NFT Marketplace</div>
+              <h1 className="landing-title">
+                Discover, collect, and trade <strong>Cosmos NFTs</strong>
+              </h1>
+              <p className="landing-subtitle">
+                A fast, modern marketplace experience—built for creators and collectors across the Cosmos ecosystem.
+              </p>
+              <div className="landing-cta">
+                <Link href="/market" className="btn primary">
+                  Launch Marketplace
+                </Link>
+                <Link href="/explore" className="btn landing-btn-secondary">
+                  Explore collections
+                </Link>
               </div>
 
-              <div className="trending-scroll">
-                <div className="trending-table">
-                  <div className="trending-row trending-head">
-                    <div className="tr-cell collection">Collection</div>
-                    <div className="tr-right tr-cell floor">Floor</div>
-                    <div className="tr-right tr-cell change">FL. CH {trendingRange}</div>
-                    <div className="tr-right tr-cell offer">Top offer</div>
-                    <div className="tr-right tr-cell sales">Sales 24h</div>
-                    <div className="tr-right tr-cell owners">Owners</div>
-                    <div className="tr-right tr-cell listed">Listed</div>
-                    <div className="tr-right tr-cell volume">Volume {trendingRange}</div>
-                    <div className="tr-right tr-cell spark">Floor {trendingRange}</div>
-                  </div>
-
-                  {trendingData.map((row, idx) => {
-                    const change = row?.changeByRangePct?.[trendingRange];
-                    const isUp = typeof change === "number" && change >= 0;
-                    const volume = row?.volumeByRangeUsd?.[trendingRange];
-                    const spark = row?.sparklineByRange?.[trendingRange] || row?.sparklineByRange?.["24h"] || [];
-
-                    return (
-                      <div key={row.name} className="trending-row trending-body">
-                        <div className="tr-collection tr-cell collection">
-                          <div className="tr-rank">{idx + 1}</div>
-                          {/* <img src={row.image || "/placeholder-nft.png"} alt={row.name} loading="lazy" /> */}
-                          <div className="tr-collection-meta">
-                            <div className="tr-collection-name">
-                              <span className="tr-collection-text">{row.name}</span>
-                              {row.verified ? <span className="tr-verified" aria-label="Verified" /> : null}
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="tr-right tr-cell floor">
-                          <div className="tr-metric-label">Floor</div>
-                          <div className="tr-metric-value">{formatFloorUSD(row.floorUsd)}</div>
-                        </div>
-                        <div className={`tr-right tr-cell change tr-change ${isUp ? "up" : "down"}`}>
-                          <div className="tr-metric-label">FL. CH {trendingRange}</div>
-                          <div className="tr-metric-value">{formatPct(change)}</div>
-                        </div>
-                        <div className="tr-right tr-cell offer">
-                          <div className="tr-metric-label">Top offer</div>
-                          <div className="tr-metric-value">{formatFloorUSD(row.topOfferUsd)}</div>
-                        </div>
-                        <div className="tr-right tr-cell sales">
-                          <div className="tr-metric-label">Sales 24h</div>
-                          <div className="tr-metric-value">{Number(row.sales24h || 0).toLocaleString()}</div>
-                        </div>
-                        <div className="tr-right tr-cell owners">
-                          <div className="tr-metric-label">Owners</div>
-                          <div className="tr-metric-value">{Number(row.owners || 0).toLocaleString()}</div>
-                        </div>
-                        <div className="tr-right tr-cell listed">
-                          <div className="tr-metric-label">Listed</div>
-                          <div className="tr-metric-value">{typeof row.listedPct === "number" ? `${row.listedPct.toFixed(1)}%` : "—"}</div>
-                        </div>
-                        <div className="tr-right tr-cell volume">
-                          <div className="tr-metric-label">Volume {trendingRange}</div>
-                          <div className="tr-metric-value">{formatCompactUSD(volume)}</div>
-                        </div>
-                        <div className="tr-right tr-cell spark">
-                          <div className="tr-metric-label">Floor {trendingRange}</div>
-                          <span className={`tr-spark ${isUp ? "up" : "down"}`}>
-                            <Sparkline data={spark} />
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-
-            <div className="section trusted">
-              <h2 className="trusted-title">Trusted by</h2>
-              <div className="trusted-grid" aria-label="Trusted by">
-                {trustedBy.map((brand) => (
-                  <div key={brand} className="trusted-card">
-                    <div className="trusted-logo" aria-label={brand}>
-                      {brand}
-                    </div>
+              <div className="landing-stats" aria-label="Marketplace stats">
+                {stats.map((s) => (
+                  <div key={s.label} className="landing-stat">
+                    <div className="landing-stat-label">{s.label}</div>
+                    <div className="landing-stat-value">{s.value}</div>
                   </div>
                 ))}
               </div>
             </div>
-          </main>
-          <RightRail />
-        </div>
-      </div>
+
+            <div className="landing-hero-card">
+              <div className="landing-card-glow" aria-hidden />
+              <div className="landing-nft-card" aria-label="Featured NFT">
+                <div className="landing-nft-media">
+                  <img src="https://i.audiomack.com/harmora/16363094-1.webp" alt="Featured Cosmos NFT artwork" loading="lazy" />
+                  <div className="landing-nft-overlay" aria-hidden />
+                  <div className="landing-nft-badges" aria-hidden>
+                    <span className="landing-nft-badge featured">Featured</span>
+                    <span className="landing-nft-badge live">Live</span>
+                  </div>
+                </div>
+                <div className="landing-nft-meta">
+                  <div className="landing-nft-title">Celestial Drift</div>
+                  <div className="landing-nft-creator">
+                    <span className="landing-nft-avatar" aria-hidden />
+                    <span className="landing-nft-creator-text">
+                      by <strong>Cosmos Originals</strong>
+                    </span>
+                  </div>
+                  <div className="landing-nft-row">
+                    <span className="landing-nft-pill">Cosmos Originals</span>
+                    <span className="landing-nft-price">
+                      <strong>24.5</strong> ATOM
+                    </span>
+                  </div>
+                  <div className="landing-nft-row">
+                    <span style={{ color: "rgba(255, 255, 255, 0.55)" }}>#0142</span>
+                    <span style={{ color: "rgba(255, 255, 255, 0.55)" }}>1/1</span>
+                  </div>
+                  <div className="landing-nft-actions">
+                    <Link href="/market" className="btn primary landing-nft-action">
+                      View in Marketplace
+                    </Link>
+                    <Link href="/explore" className="btn landing-btn-secondary landing-nft-action">
+                      View Collections
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="landing-section">
+          <div className="container">
+            <div className="landing-section-head">
+              <h2>Everything you need to start</h2>
+              <p>Mint new NFTs, list instantly, and keep track of activity and offers.</p>
+            </div>
+            <div className="landing-feature-grid">
+              <div className="landing-feature-card">
+                <div className="landing-feature-top">
+                  <div className="landing-feature-icon" aria-hidden>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                      <path
+                        d="M12 2l3 7 7 3-7 3-3 7-3-7-7-3 7-3 3-7Z"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  </div>
+                  <div className="landing-feature-text">
+                    <h3>Mint in minutes</h3>
+                    <p>Create NFTs with on-chain metadata and flexible supply options.</p>
+                  </div>
+                </div>
+              </div>
+              <div className="landing-feature-card">
+                <div className="landing-feature-top">
+                  <div className="landing-feature-icon" aria-hidden>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                      <path
+                        d="M7 7h14l-2 7H9L7 7Z"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinejoin="round"
+                      />
+                      <path d="M7 7L5 3H2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                      <path d="M9 21a1 1 0 100-2 1 1 0 000 2Z" fill="currentColor" />
+                      <path d="M18 21a1 1 0 100-2 1 1 0 000 2Z" fill="currentColor" />
+                    </svg>
+                  </div>
+                  <div className="landing-feature-text">
+                    <h3>List and trade</h3>
+                    <p>Buy now listings, offers, and a clean checkout flow with wallet support.</p>
+                  </div>
+                </div>
+              </div>
+              <div className="landing-feature-card">
+                <div className="landing-feature-top">
+                  <div className="landing-feature-icon" aria-hidden>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                      <path
+                        d="M4 18l6-6 4 4 6-8"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                      <path d="M20 8V4h-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </div>
+                  <div className="landing-feature-text">
+                    <h3>Track performance</h3>
+                    <p>View floor movement, collection stats, and activity in one place.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="landing-section">
+          <div className="container">
+            <div className="landing-cta-panel">
+              <div className="landing-cta-panel-left">
+                <div className="landing-cta-panel-badge">Get started</div>
+                <div className="landing-cta-panel-title">Ready to explore Cosmos NFTs?</div>
+                <div className="landing-cta-panel-sub">Browse trending collections and discover your next favorite drop.</div>
+              </div>
+              <div className="landing-cta">
+                <Link href="/market" className="btn primary">
+                  Launch Marketplace
+                </Link>
+                <Link href="/mint" className="btn landing-btn-secondary">
+                  Create an NFT
+                </Link>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
       <Footer />
     </>
   );

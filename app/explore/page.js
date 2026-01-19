@@ -20,7 +20,7 @@ export default async function ExplorePage() {
       contractAddress: a.contractAddress,
       name: a.name,
       collection: a.collection || "Unknown Collection",
-      image: a.image || "/placeholder-nft.png",
+      image: a.image || null,
       priceEth: a.priceEth ?? 0,
       owner: a.owner || null,
       description: a.description || null,

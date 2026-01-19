@@ -124,6 +124,22 @@ export default function MintPage() {
     address &&
     profileState.walletAddress.toLowerCase() !== address.toLowerCase();
 
+  const currentStep = useMemo(() => {
+    const needsCollection = collectionMode === "existing";
+    if (needsCollection && !selectedCollection) return 1;
+    if (!imageFile) return 2;
+    if (!formData.name.trim() || !formData.description.trim()) return 3;
+    return 4;
+  }, [collectionMode, selectedCollection, imageFile, formData.name, formData.description]);
+
+  const preview = useMemo(() => {
+    const name = formData.name.trim() || "Untitled NFT";
+    const description = formData.description.trim() || "Add a description to help collectors understand your NFT.";
+    const category = formData.category.trim() || "Uncategorized";
+    const rarity = formData.rarity.trim() || "Standard";
+    return { name, description, category, rarity };
+  }, [formData.name, formData.description, formData.category, formData.rarity]);
+
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -297,18 +313,61 @@ export default function MintPage() {
               />
             </motion.div>
 
-            <div className="mint-header" style={{ position: "relative", display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "flex-end" }}>
-              <div>
-                <h1 style={{ margin: 0 }}>Mint</h1>
-                <div style={{ color: "var(--muted)", marginTop: 6 }}>Mint an NFT to the default collection or your own.</div>
+            <div className="mint-hero">
+              <div className="mint-hero-top">
+                <div className="mint-hero-left">
+                  <div className="mint-hero-badge">Create</div>
+                  <h1 style={{ margin: 0 }}>Mint</h1>
+                  <div className="mint-hero-sub">Upload media, add details, then mint into a collection.</div>
+                </div>
+                <div className="mint-header-actions mint-hero-actions">
+                  <button className="btn" type="button" onClick={() => router.push("/wallet")}>
+                    Wallet
+                  </button>
+                  <button className="btn" type="button" onClick={() => router.push("/collections")}>
+                    Collections
+                  </button>
+                </div>
               </div>
-              <div className="mint-header-actions" style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                <button className="btn" type="button" onClick={() => router.push("/wallet")}>
-                  Wallet
-                </button>
-                <button className="btn" type="button" onClick={() => router.push("/collections")}>
-                  Collections
-                </button>
+
+              <div className="mint-hero-bottom">
+                <div className="mint-steps" role="list" aria-label="Mint steps">
+                  <div className={`mint-step${currentStep === 1 ? " active" : ""}${currentStep > 1 ? " done" : ""}`} role="listitem">
+                    <div className="mint-step-dot">1</div>
+                    <div className="mint-step-text">
+                      <div className="mint-step-title">Collection</div>
+                      <div className="mint-step-sub">Default or yours</div>
+                    </div>
+                  </div>
+                  <div className={`mint-step${currentStep === 2 ? " active" : ""}${currentStep > 2 ? " done" : ""}`} role="listitem">
+                    <div className="mint-step-dot">2</div>
+                    <div className="mint-step-text">
+                      <div className="mint-step-title">Media</div>
+                      <div className="mint-step-sub">Upload artwork</div>
+                    </div>
+                  </div>
+                  <div className={`mint-step${currentStep === 3 ? " active" : ""}${currentStep > 3 ? " done" : ""}`} role="listitem">
+                    <div className="mint-step-dot">3</div>
+                    <div className="mint-step-text">
+                      <div className="mint-step-title">Details</div>
+                      <div className="mint-step-sub">Name + description</div>
+                    </div>
+                  </div>
+                  <div className={`mint-step${currentStep === 4 ? " active" : ""}`} role="listitem">
+                    <div className="mint-step-dot">4</div>
+                    <div className="mint-step-text">
+                      <div className="mint-step-title">Mint</div>
+                      <div className="mint-step-sub">Sign message</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mint-hero-pills">
+                  <div className={`mint-pill${isConnected ? " ok" : ""}`}>{isConnected && address ? `Connected: ${truncateAddress(address)}` : "Wallet not connected"}</div>
+                  <div className={`mint-pill${profileState.walletAddress ? " ok" : ""}`}>
+                    {profileState.walletAddress ? `Linked: ${truncateAddress(profileState.walletAddress)}` : "Wallet not linked"}
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -406,121 +465,41 @@ export default function MintPage() {
             </div>
           ) : null}
 
-          <div className="mint-grid" style={{ marginTop: 18 }}>
-            <motion.div variants={cardVariants} className="card" initial="hidden" animate="show" style={{ padding: 16 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
-                <div style={{ fontWeight: 800 }}>Collection</div>
-                <button className="btn" type="button" onClick={refreshMyCollections} disabled={myCollectionsState.isLoading} style={{ padding: "6px 10px", fontSize: 12 }}>
-                  {myCollectionsState.isLoading ? "Refreshing..." : "Refresh"}
-                </button>
-              </div>
-
-              <div className="mint-collection-tabs" style={{ display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
-                <button className={collectionMode === "default" ? "btn primary" : "btn"} type="button" onClick={() => setCollectionMode("default")}>
-                  Default
-                </button>
-                <button className={collectionMode === "existing" ? "btn primary" : "btn"} type="button" onClick={() => setCollectionMode("existing")}>
-                  My Collections
-                </button>
-                <button className={collectionMode === "create" ? "btn primary" : "btn"} type="button" onClick={() => setCollectionMode("create")}>
-                  Create
-                </button>
-              </div>
-
-              <AnimatePresence mode="wait">
-                {collectionMode === "default" ? (
-                  <motion.div key="default" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 6 }} transition={{ duration: 0.18 }} style={{ marginTop: 14 }}>
-                    <div style={{ color: "var(--muted)", fontSize: 13 }}>Mints to the configured default contract.</div>
-                  </motion.div>
-                ) : null}
-
-                {collectionMode === "existing" ? (
-                  <motion.div key="existing" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 6 }} transition={{ duration: 0.18 }} style={{ marginTop: 14 }}>
-                    {myCollectionsState.error ? <div style={{ color: "var(--red)", marginBottom: 10 }}>{myCollectionsState.error}</div> : null}
-                    {myCollections.length === 0 ? (
-                      <div style={{ color: "var(--muted)", fontSize: 13 }}>No collections found for this account.</div>
-                    ) : (
-                      <div style={{ display: "grid", gap: 10 }}>
-                        <select
-                          value={selectedCollection}
-                          onChange={(e) => setSelectedCollection(e.target.value)}
-                          style={{ ...softFieldStyle, padding: 11 }}
-                        >
-                          <option value="">Select a collection…</option>
-                          {myCollections.map((c) => (
-                            <option key={c.contractAddress} value={c.contractAddress}>
-                              {c.name} • {truncateAddress(c.contractAddress)}
-                            </option>
-                          ))}
-                        </select>
-
-                        {selectedCollection ? (
-                          <div style={{ fontSize: 12, color: "var(--muted)" }}>
-                            Selected: <span style={{ fontFamily: "monospace", color: "var(--text)", wordBreak: "break-all" }}>{selectedCollection}</span>
-                          </div>
-                        ) : null}
-                      </div>
-                    )}
-                  </motion.div>
-                ) : null}
-
-                {collectionMode === "create" ? (
-                  <motion.div key="create" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 6 }} transition={{ duration: 0.18 }} style={{ marginTop: 14 }}>
-                    {collectionCreateState.error ? <div style={{ color: "var(--red)", marginBottom: 10 }}>{collectionCreateState.error}</div> : null}
-                    {collectionCreateState.success ? <div style={{ color: "var(--green)", marginBottom: 10 }}>{collectionCreateState.success}</div> : null}
-
-                    <div style={{ display: "grid", gap: 12 }}>
-                      <div>
-                        <label style={{ display: "block", marginBottom: 8, fontWeight: 700 }}>Image *</label>
-                        <input type="file" accept="image/*" onChange={handleCollectionImageChange} style={softFieldStyle} />
-                        {collectionImagePreview ? (
-                          <motion.img
-                            initial={{ opacity: 0, y: 8 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            src={collectionImagePreview}
-                            alt="Collection preview"
-                            style={{ marginTop: 10, width: "100%", height: 180, objectFit: "cover", borderRadius: 12, border: "1px solid var(--border)" }}
-                          />
-                        ) : null}
-                      </div>
-
-                      <div>
-                        <label style={{ display: "block", marginBottom: 8, fontWeight: 700 }}>Name *</label>
-                        <input
-                          value={collectionForm.name}
-                          onChange={(e) => setCollectionForm((s) => ({ ...s, name: e.target.value }))}
-                          placeholder="My Collection"
-                          style={softFieldStyle}
-                        />
-                      </div>
-
-                      <div>
-                        <label style={{ display: "block", marginBottom: 8, fontWeight: 700 }}>Description</label>
-                        <textarea
-                          value={collectionForm.description}
-                          onChange={(e) => setCollectionForm((s) => ({ ...s, description: e.target.value }))}
-                          placeholder="Optional description"
-                          rows={3}
-                          style={{ ...softFieldStyle, resize: "vertical", fontFamily: "inherit" }}
-                        />
-                      </div>
-
-                      <button className="btn primary" type="button" onClick={createCollection} disabled={collectionCreateState.isLoading || !isConnected}>
-                        {collectionCreateState.isLoading ? "Creating..." : "Create Collection"}
-                      </button>
-                    </div>
-                  </motion.div>
-                ) : null}
-              </AnimatePresence>
-            </motion.div>
-
-            <motion.div variants={cardVariants} className="card" initial="hidden" animate="show" style={{ padding: 16 }}>
-              <div style={{ fontWeight: 800, marginBottom: 12 }}>NFT</div>
-
-              <form onSubmit={handleSubmit} style={{ display: "grid", gap: 14 }}>
+          <div className="mint-layout" style={{ marginTop: 18 }}>
+            <motion.div variants={cardVariants} className="card mint-card mint-main-card" initial="hidden" animate="show">
+              <div className="mint-card-head">
                 <div>
-                  <label style={{ display: "block", marginBottom: 8, fontWeight: 700 }}>Image *</label>
-                  <input type="file" accept="image/*" onChange={handleImageChange} style={softFieldStyle} />
+                  <div className="mint-card-title">Create NFT</div>
+                  <div className="mint-card-sub">Fields marked with * are required.</div>
+                </div>
+                {imageFile ? (
+                  <button
+                    className="btn"
+                    type="button"
+                    onClick={() => {
+                      setImageFile(null);
+                      setImagePreview(null);
+                    }}
+                    style={{ padding: "6px 10px", fontSize: 12 }}
+                  >
+                    Remove Image
+                  </button>
+                ) : null}
+              </div>
+
+              <form onSubmit={handleSubmit} className="mint-form">
+                <div className="mint-field">
+                  <div className="mint-field-head">
+                    <label className="mint-label">Image *</label>
+                    <div className="mint-field-hint">PNG, JPG, GIF, WEBP</div>
+                  </div>
+                  <label className={`mint-drop${imagePreview ? " has" : ""}`}>
+                    <input className="mint-file-input" type="file" accept="image/*" onChange={handleImageChange} />
+                    <div className="mint-drop-inner">
+                      <div className="mint-drop-title">{imageFile ? imageFile.name : "Choose a file"}</div>
+                      <div className="mint-drop-sub">{imageFile ? "Click to replace" : "Click to upload artwork"}</div>
+                    </div>
+                  </label>
                   <AnimatePresence>
                     {imagePreview ? (
                       <motion.img
@@ -529,16 +508,16 @@ export default function MintPage() {
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: 8 }}
                         src={imagePreview}
-                        alt="Preview"
-                        style={{ marginTop: 10, width: "100%", maxHeight: 340, objectFit: "cover", borderRadius: 12, border: "1px solid var(--border)" }}
+                        alt="NFT preview"
+                        className="mint-media-preview"
                       />
                     ) : null}
                   </AnimatePresence>
                 </div>
 
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>
-                  <div>
-                    <label style={{ display: "block", marginBottom: 8, fontWeight: 700 }}>Name *</label>
+                <div className="mint-two-col">
+                  <div className="mint-field">
+                    <label className="mint-label">Name *</label>
                     <input
                       type="text"
                       value={formData.name}
@@ -549,8 +528,8 @@ export default function MintPage() {
                     />
                   </div>
 
-                  <div>
-                    <label style={{ display: "block", marginBottom: 8, fontWeight: 700 }}>Rarity</label>
+                  <div className="mint-field">
+                    <label className="mint-label">Rarity</label>
                     <input
                       type="text"
                       value={formData.rarity}
@@ -561,8 +540,8 @@ export default function MintPage() {
                   </div>
                 </div>
 
-                <div>
-                  <label style={{ display: "block", marginBottom: 8, fontWeight: 700 }}>Description *</label>
+                <div className="mint-field">
+                  <label className="mint-label">Description *</label>
                   <textarea
                     value={formData.description}
                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
@@ -573,8 +552,8 @@ export default function MintPage() {
                   />
                 </div>
 
-                <div>
-                  <label style={{ display: "block", marginBottom: 8, fontWeight: 700 }}>Category</label>
+                <div className="mint-field">
+                  <label className="mint-label">Category</label>
                   <input
                     type="text"
                     value={formData.category}
@@ -584,24 +563,192 @@ export default function MintPage() {
                   />
                 </div>
 
-                <button
-                  type="submit"
-                  className="btn primary"
-                  disabled={
-                    !isConnected ||
-                    isLoading ||
-                    !imageFile ||
-                    (collectionMode === "existing" && !selectedCollection) ||
-                    profileState.isLoading ||
-                    !profileState.walletAddress ||
-                    walletMismatch
-                  }
-                  style={{ width: "100%", padding: 12 }}
-                >
-                  {isLoading ? "Minting..." : collectionMode === "existing" ? "Mint to Collection" : "Mint NFT"}
-                </button>
+                <div className="mint-submit-row">
+                  <button
+                    type="submit"
+                    className="btn primary mint-submit"
+                    disabled={
+                      !isConnected ||
+                      isLoading ||
+                      !imageFile ||
+                      (collectionMode === "existing" && !selectedCollection) ||
+                      profileState.isLoading ||
+                      !profileState.walletAddress ||
+                      walletMismatch
+                    }
+                  >
+                    {isLoading ? "Minting..." : collectionMode === "existing" ? "Mint to Collection" : "Mint NFT"}
+                  </button>
+                  <div className="mint-submit-sub">
+                    {profileState.walletAddress ? "Minting requires a wallet signature." : "Link your wallet to mint."}
+                  </div>
+                </div>
               </form>
             </motion.div>
+
+            <div className="mint-side">
+              <motion.div variants={cardVariants} className="card mint-card" initial="hidden" animate="show">
+                <div className="mint-card-head">
+                  <div>
+                    <div className="mint-card-title">Collection</div>
+                    <div className="mint-card-sub">Choose where your NFT will be minted.</div>
+                  </div>
+                  <button className="btn" type="button" onClick={refreshMyCollections} disabled={myCollectionsState.isLoading} style={{ padding: "6px 10px", fontSize: 12 }}>
+                    {myCollectionsState.isLoading ? "Refreshing..." : "Refresh"}
+                  </button>
+                </div>
+
+                <div className="mint-seg" role="tablist" aria-label="Collection mode">
+                  <button
+                    className={`mint-seg-btn${collectionMode === "default" ? " active" : ""}`}
+                    type="button"
+                    onClick={() => setCollectionMode("default")}
+                    aria-selected={collectionMode === "default"}
+                  >
+                    Default
+                  </button>
+                  <button
+                    className={`mint-seg-btn${collectionMode === "existing" ? " active" : ""}`}
+                    type="button"
+                    onClick={() => setCollectionMode("existing")}
+                    aria-selected={collectionMode === "existing"}
+                  >
+                    My Collections
+                  </button>
+                  <button
+                    className={`mint-seg-btn${collectionMode === "create" ? " active" : ""}`}
+                    type="button"
+                    onClick={() => setCollectionMode("create")}
+                    aria-selected={collectionMode === "create"}
+                  >
+                    Create
+                  </button>
+                </div>
+
+                <AnimatePresence mode="wait">
+                  {collectionMode === "default" ? (
+                    <motion.div key="default" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 6 }} transition={{ duration: 0.18 }} className="mint-tab">
+                      <div className="mint-muted">Mints to the configured default contract.</div>
+                    </motion.div>
+                  ) : null}
+
+                  {collectionMode === "existing" ? (
+                    <motion.div key="existing" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 6 }} transition={{ duration: 0.18 }} className="mint-tab">
+                      {myCollectionsState.error ? <div className="mint-error">{myCollectionsState.error}</div> : null}
+                      {myCollections.length === 0 ? (
+                        <div className="mint-muted">No collections found for this account.</div>
+                      ) : (
+                        <div className="mint-stack">
+                          <select value={selectedCollection} onChange={(e) => setSelectedCollection(e.target.value)} style={{ ...softFieldStyle, padding: 11 }}>
+                            <option value="">Select a collection…</option>
+                            {myCollections.map((c) => (
+                              <option key={c.contractAddress} value={c.contractAddress}>
+                                {c.name} • {truncateAddress(c.contractAddress)}
+                              </option>
+                            ))}
+                          </select>
+
+                          {selectedCollection ? (
+                            <div className="mint-mono">
+                              Selected: <span>{selectedCollection}</span>
+                            </div>
+                          ) : null}
+                        </div>
+                      )}
+                    </motion.div>
+                  ) : null}
+
+                  {collectionMode === "create" ? (
+                    <motion.div key="create" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 6 }} transition={{ duration: 0.18 }} className="mint-tab">
+                      {collectionCreateState.error ? <div className="mint-error">{collectionCreateState.error}</div> : null}
+                      {collectionCreateState.success ? <div className="mint-success">{collectionCreateState.success}</div> : null}
+
+                      <div className="mint-stack">
+                        <div className="mint-field">
+                          <label className="mint-label">Image *</label>
+                          <label className={`mint-drop small${collectionImagePreview ? " has" : ""}`}>
+                            <input className="mint-file-input" type="file" accept="image/*" onChange={handleCollectionImageChange} />
+                            <div className="mint-drop-inner">
+                              <div className="mint-drop-title">{collectionImageFile ? collectionImageFile.name : "Choose a file"}</div>
+                              <div className="mint-drop-sub">{collectionImageFile ? "Click to replace" : "Click to upload collection image"}</div>
+                            </div>
+                          </label>
+                          {collectionImagePreview ? (
+                            <motion.img initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} src={collectionImagePreview} alt="Collection preview" className="mint-media-preview small" />
+                          ) : null}
+                        </div>
+
+                        <div className="mint-field">
+                          <label className="mint-label">Name *</label>
+                          <input
+                            value={collectionForm.name}
+                            onChange={(e) => setCollectionForm((s) => ({ ...s, name: e.target.value }))}
+                            placeholder="My Collection"
+                            style={softFieldStyle}
+                          />
+                        </div>
+
+                        <div className="mint-field">
+                          <label className="mint-label">Description</label>
+                          <textarea
+                            value={collectionForm.description}
+                            onChange={(e) => setCollectionForm((s) => ({ ...s, description: e.target.value }))}
+                            placeholder="Optional description"
+                            rows={3}
+                            style={{ ...softFieldStyle, resize: "vertical", fontFamily: "inherit" }}
+                          />
+                        </div>
+
+                        <button className="btn primary" type="button" onClick={createCollection} disabled={collectionCreateState.isLoading || !isConnected}>
+                          {collectionCreateState.isLoading ? "Creating..." : "Create Collection"}
+                        </button>
+                      </div>
+                    </motion.div>
+                  ) : null}
+                </AnimatePresence>
+              </motion.div>
+
+              <motion.div variants={cardVariants} className="card mint-card mint-preview-card" initial="hidden" animate="show">
+                <div className="mint-card-head">
+                  <div>
+                    <div className="mint-card-title">Preview</div>
+                    <div className="mint-card-sub">This is how your NFT will look.</div>
+                  </div>
+                  <div className={`mint-preview-chip step-${currentStep}`}>Step {currentStep}/4</div>
+                </div>
+
+                <div className="mint-preview-media">
+                  {imagePreview ? <img src={imagePreview} alt="Preview artwork" /> : <div className="mint-preview-placeholder">Upload an image to preview</div>}
+                </div>
+
+                <div className="mint-preview-meta">
+                  <div className="mint-preview-title">{preview.name}</div>
+                  <div className="mint-preview-desc">{preview.description}</div>
+
+                  <div className="mint-preview-attrs">
+                    <div className="mint-attr">
+                      <div className="mint-attr-k">Category</div>
+                      <div className="mint-attr-v">{preview.category}</div>
+                    </div>
+                    <div className="mint-attr">
+                      <div className="mint-attr-k">Rarity</div>
+                      <div className="mint-attr-v">{preview.rarity}</div>
+                    </div>
+                  </div>
+
+                  <div className="mint-preview-collection">
+                    <div className="mint-attr-k">Collection</div>
+                    {collectionMode === "existing" && selectedCollection ? (
+                      <div className="mint-mono">
+                        <span>{selectedCollection}</span>
+                      </div>
+                    ) : (
+                      <div className="mint-muted">{collectionMode === "default" ? "Default contract" : "Select or create a collection"}</div>
+                    )}
+                  </div>
+                </div>
+              </motion.div>
+            </div>
           </div>
         </motion.div>
       </main>

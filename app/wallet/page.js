@@ -9,7 +9,7 @@ import TransactionList from "../../components/TransactionList";
 import { useEffect, useState } from "react";
 import { useWalletConnection } from "../../lib/hooks/useWallet";
 import { useSigner } from "@thirdweb-dev/react";
-import { truncateAddress } from "../../lib/utils";
+import { truncateAddress, NFT_PLACEHOLDER_SRC } from "../../lib/utils";
 import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
 
@@ -148,7 +148,11 @@ export default function WalletPage() {
     if (activeTab === "balance") {
       return (
         <div style={{ display: "grid", gap: 14 }}>
-          <WalletBalanceCard />
+          <WalletBalanceCard
+            onSend={() => setActiveTab("withdraw")}
+            onRequest={() => setActiveTab("deposit")}
+            onSeeMoreTransactions={() => setActiveTab("transactions")}
+          />
         </div>
       );
     }
@@ -207,8 +211,7 @@ export default function WalletPage() {
                 <Link
                   key={`${a.contractAddress}-${a.tokenId}`}
                   href={`/asset/${a.contractAddress}/${a.tokenId}`}
-                  className="card"
-                  style={{ textDecoration: "none" }}
+                  className="card nft-card"
                 >
                   <motion.div
                     initial={{ opacity: 0, y: 10 }}
@@ -216,11 +219,10 @@ export default function WalletPage() {
                     transition={{ duration: 0.22, delay: Math.min(0.18, idx * 0.02), ease: [0.22, 1, 0.36, 1] }}
                   >
                     <img
-                      src={a.image || "/placeholder-nft.png"}
+                      src={a.image || NFT_PLACEHOLDER_SRC}
                       alt={a.name || `NFT #${a.tokenId}`}
-                      style={{ width: "100%", height: 200, objectFit: "cover" }}
                       onError={(e) => {
-                        e.target.src = "https://via.placeholder.com/400x400?text=NFT";
+                        e.currentTarget.src = NFT_PLACEHOLDER_SRC;
                       }}
                     />
                     <div className="meta">
@@ -536,41 +538,53 @@ export default function WalletPage() {
                   </div>
 
                   <div style={{ display: "flex", gap: 8, marginBottom: 18, flexWrap: "wrap" }}>
-                    <motion.button
-                      {...tabButtonMotion}
-                      className={activeTab === "balance" ? "btn primary" : "btn"}
-                      onClick={() => setActiveTab("balance")}
-                      type="button"
-                    >
-                      Balance
-                    </motion.button>
-                    <motion.button
-                      {...tabButtonMotion}
-                      className={activeTab === "deposit" ? "btn primary" : "btn"}
-                      onClick={() => setActiveTab("deposit")}
-                      type="button"
-                    >
-                      Deposit
-                    </motion.button>
-                    <motion.button
-                      {...tabButtonMotion}
-                      className={activeTab === "withdraw" ? "btn primary" : "btn"}
-                      onClick={() => setActiveTab("withdraw")}
-                      type="button"
-                    >
-                      Withdraw
-                    </motion.button>
-                    <motion.button
-                      {...tabButtonMotion}
-                      className={activeTab === "transactions" ? "btn primary" : "btn"}
-                      onClick={() => setActiveTab("transactions")}
-                      type="button"
-                    >
-                      Transactions
-                    </motion.button>
-                    <motion.button {...tabButtonMotion} className={activeTab === "nfts" ? "btn primary" : "btn"} onClick={() => setActiveTab("nfts")} type="button">
-                      NFTs
-                    </motion.button>
+                    <div className="wallet-tabs" role="tablist" aria-label="Wallet tabs">
+                      <motion.button
+                        {...tabButtonMotion}
+                        className={`wallet-tab-btn${activeTab === "balance" ? " active" : ""}`}
+                        onClick={() => setActiveTab("balance")}
+                        type="button"
+                        aria-selected={activeTab === "balance"}
+                      >
+                        Balance
+                      </motion.button>
+                      <motion.button
+                        {...tabButtonMotion}
+                        className={`wallet-tab-btn${activeTab === "deposit" ? " active" : ""}`}
+                        onClick={() => setActiveTab("deposit")}
+                        type="button"
+                        aria-selected={activeTab === "deposit"}
+                      >
+                        Deposit
+                      </motion.button>
+                      <motion.button
+                        {...tabButtonMotion}
+                        className={`wallet-tab-btn${activeTab === "withdraw" ? " active" : ""}`}
+                        onClick={() => setActiveTab("withdraw")}
+                        type="button"
+                        aria-selected={activeTab === "withdraw"}
+                      >
+                        Withdraw
+                      </motion.button>
+                      <motion.button
+                        {...tabButtonMotion}
+                        className={`wallet-tab-btn${activeTab === "transactions" ? " active" : ""}`}
+                        onClick={() => setActiveTab("transactions")}
+                        type="button"
+                        aria-selected={activeTab === "transactions"}
+                      >
+                        Transactions
+                      </motion.button>
+                      <motion.button
+                        {...tabButtonMotion}
+                        className={`wallet-tab-btn${activeTab === "nfts" ? " active" : ""}`}
+                        onClick={() => setActiveTab("nfts")}
+                        type="button"
+                        aria-selected={activeTab === "nfts"}
+                      >
+                        NFTs
+                      </motion.button>
+                    </div>
                   </div>
 
                   <AnimatePresence mode="wait">

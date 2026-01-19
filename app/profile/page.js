@@ -4,7 +4,7 @@ import Footer from "../../components/Footer";
 import CreateListingModal from "../../components/CreateListingModal";
 import { useWalletConnection } from "../../lib/hooks/useWallet";
 import { useVirtualWallet } from "../../lib/hooks/useVirtualWallet";
-import { truncateAddress } from "../../lib/utils";
+import { truncateAddress, NFT_PLACEHOLDER_SRC } from "../../lib/utils";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSigner } from "@thirdweb-dev/react";
@@ -372,14 +372,13 @@ export default function ProfilePage() {
                 {virtualOwned.map((a) => {
                   const key = `${a.contractAddress}-${a.tokenId}`;
                   return (
-                    <div key={key} className="card" style={{ padding: 0 }}>
-                      <Link href={`/asset/${a.contractAddress}/${a.tokenId}`} style={{ textDecoration: "none", color: "inherit" }}>
+                    <div key={key} className="card nft-card" style={{ padding: 0 }}>
+                      <Link href={`/asset/${a.contractAddress}/${a.tokenId}`} className="nft-card-link">
                         <img
-                          src={a.image || "/placeholder-nft.png"}
+                          src={a.image || NFT_PLACEHOLDER_SRC}
                           alt={a.name || `NFT #${a.tokenId}`}
-                          style={{ width: "100%", height: 200, objectFit: "cover" }}
                           onError={(e) => {
-                            e.target.src = "https://via.placeholder.com/400x400?text=NFT";
+                            e.currentTarget.src = NFT_PLACEHOLDER_SRC;
                           }}
                         />
                         <div className="meta">
@@ -387,7 +386,7 @@ export default function ProfilePage() {
                           <div className="sub">{a.collection || "Cosmos Virtual Collection"}</div>
                         </div>
                       </Link>
-                      <div style={{ padding: 10, display: "flex", gap: 10, flexWrap: "wrap" }}>
+                      <div className="nft-card-actions">
                         <button
                           className="btn primary"
                           onClick={() =>
@@ -436,15 +435,13 @@ export default function ProfilePage() {
                   <Link
                     key={`${a.contractAddress}-${a.tokenId}`}
                     href={`/asset/${a.contractAddress}/${a.tokenId}`}
-                    className="card"
-                    style={{ textDecoration: "none" }}
+                    className="card nft-card"
                   >
                     <img 
-                      src={a.image || "/placeholder-nft.png"} 
+                      src={a.image || NFT_PLACEHOLDER_SRC} 
                       alt={a.name || `NFT #${a.tokenId}`}
-                      style={{ width: "100%", height: 200, objectFit: "cover" }}
                       onError={(e) => {
-                        e.target.src = "https://via.placeholder.com/400x400?text=NFT";
+                        e.currentTarget.src = NFT_PLACEHOLDER_SRC;
                       }}
                     />
                     <div className="meta">

@@ -2,7 +2,7 @@
 import NavBar from "../../components/NavBar";
 import Footer from "../../components/Footer";
 import { useWalletConnection } from "../../lib/hooks/useWallet";
-import { handleTransactionError, truncateAddress } from "../../lib/utils";
+import { handleTransactionError, truncateAddress, NFT_PLACEHOLDER_SRC } from "../../lib/utils";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 
@@ -178,93 +178,101 @@ export default function ListingsPage() {
                 const tokenId = listing.tokenId?.toString?.() || String(listing.tokenId);
                 const contractAddress = listing.contractAddress;
                 const priceEth = Number(listing.priceEth || 0);
+                const name = listing.name || `NFT #${tokenId}`;
+                const collection = listing.collection || "Unknown Collection";
 
                 return (
-                <div key={`${contractAddress}-${tokenId}`} className="card" style={{ padding: 16 }}>
-                  <Link href={`/asset/${contractAddress}/${tokenId}`} style={{ textDecoration: "none", color: "inherit" }}>
-                    <img 
-                      src={listing.image || "/placeholder-nft.png"} 
-                      alt={listing.name || `NFT #${listing.tokenId}`}
-                      style={{ width: "100%", height: 200, objectFit: "cover", borderRadius: 8, marginBottom: 12 }}
-                      onError={(e) => {
-                        e.target.src = "https://via.placeholder.com/400x400?text=NFT";
-                      }}
-                    />
-                  </Link>
-                  <div style={{ marginBottom: 8, fontWeight: 600 }}>
-                    {listing.name || `NFT #${listing.tokenId}`}
-                  </div>
-                  <div style={{ marginBottom: 8, color: "var(--muted)", fontSize: 14 }}>
-                    Price: {priceEth} ETH
-                  </div>
-                  <div style={{ marginBottom: 12, color: "var(--muted)", fontSize: 12 }}>Seller: {truncateAddress(listing.owner)}</div>
-                  
-                  {isOwner ? (
-                    editingListing === `${contractAddress}-${tokenId}` ? (
-                    <div style={{ display: "flex", gap: 8, flexDirection: "column" }}>
-                      <input
-                        type="number"
-                        step="0.001"
-                        value={newPrice}
-                        onChange={(e) => setNewPrice(e.target.value)}
-                        placeholder="New price (ETH)"
-                        style={{
-                          padding: 8,
-                          borderRadius: 6,
-                          border: "1px solid var(--border)",
-                          background: "var(--bg)",
-                          color: "var(--text)",
+                  <div key={`${contractAddress}-${tokenId}`} className="card nft-card">
+                    <Link href={`/asset/${contractAddress}/${tokenId}`} className="nft-card-link">
+                      <img
+                        src={listing.image || NFT_PLACEHOLDER_SRC}
+                        alt={name}
+                        loading="lazy"
+                        onError={(e) => {
+                          e.currentTarget.src = NFT_PLACEHOLDER_SRC;
                         }}
                       />
-                      <div style={{ display: "flex", gap: 8 }}>
-                        <button
-                          className="btn"
-                          onClick={() => {
-                            setEditingListing(null);
-                            setNewPrice("");
-                          }}
-                          style={{ flex: 1 }}
-                        >
-                          Cancel
-                        </button>
+                      <div className="meta">
+                        <div className="title">{name}</div>
+                        <div className="sub">{collection}</div>
+                        <div className="price">
+                          <span>Price</span>
+                          <span>{priceEth} ETH</span>
+                        </div>
+                        <div className="sub">Seller: {truncateAddress(listing.owner)}</div>
+                      </div>
+                    </Link>
+
+                    <div className="nft-card-actions">
+                      {isOwner ? (
+                        editingListing === `${contractAddress}-${tokenId}` ? (
+                          <>
+                            <input
+                              type="number"
+                              step="0.001"
+                              value={newPrice}
+                              onChange={(e) => setNewPrice(e.target.value)}
+                              placeholder="New price (ETH)"
+                              inputMode="decimal"
+                            />
+                            <button
+                              className="btn"
+                              onClick={() => {
+                                setEditingListing(null);
+                                setNewPrice("");
+                              }}
+                              style={{ flex: 1 }}
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              className="btn primary"
+                              onClick={() => handleUpdatePrice({ contractAddress, tokenId })}
+                              disabled={operationLoading}
+                              style={{ flex: 1 }}
+                            >
+                              {operationLoading ? "Updating..." : "Update"}
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <button
+                              className="btn"
+                              onClick={() => {
+                                setEditingListing(`${contractAddress}-${tokenId}`);
+                                setNewPrice(String(priceEth));
+                              }}
+                              style={{ flex: 1 }}
+                            >
+                              Update Price
+                            </button>
+                            <button
+                              className="btn"
+                              onClick={() => handleCancel({ contractAddress, tokenId })}
+                              disabled={operationLoading}
+                              style={{
+                                flex: 1,
+                                background: "rgba(239, 68, 68, 0.1)",
+                                color: "var(--red)",
+                                borderColor: "var(--red)",
+                              }}
+                            >
+                              Cancel Listing
+                            </button>
+                          </>
+                        )
+                      ) : (
                         <button
                           className="btn primary"
-                          onClick={() => handleUpdatePrice({ contractAddress, tokenId })}
-                          disabled={operationLoading}
-                          style={{ flex: 1 }}
+                          onClick={() => handleBuy({ contractAddress, tokenId })}
+                          disabled={!isConnected || operationLoading}
+                          style={{ width: "100%" }}
                         >
-                          {operationLoading ? "Updating..." : "Update"}
+                          {operationLoading ? "Processing..." : "Buy"}
                         </button>
-                      </div>
+                      )}
                     </div>
-                  ) : (
-                    <div style={{ display: "flex", gap: 8 }}>
-                      <button
-                        className="btn"
-                        onClick={() => {
-                          setEditingListing(`${contractAddress}-${tokenId}`);
-                          setNewPrice(String(priceEth));
-                        }}
-                        style={{ flex: 1 }}
-                      >
-                        Update Price
-                      </button>
-                      <button
-                        className="btn"
-                        onClick={() => handleCancel({ contractAddress, tokenId })}
-                        disabled={operationLoading}
-                        style={{ flex: 1, background: "rgba(239, 68, 68, 0.1)", color: "var(--red)", borderColor: "var(--red)" }}
-                      >
-                        Cancel Listing
-                      </button>
-                    </div>
-                  )
-                  ) : (
-                    <button className="btn primary" onClick={() => handleBuy({ contractAddress, tokenId })} disabled={!isConnected || operationLoading} style={{ width: "100%" }}>
-                      {operationLoading ? "Processing..." : "Buy"}
-                    </button>
-                  )}
-                </div>
+                  </div>
                 );
               })}
             </div>

@@ -2,7 +2,7 @@
 import NavBar from "../../components/NavBar";
 import Footer from "../../components/Footer";
 import { useWalletConnection } from "../../lib/hooks/useWallet";
-import { handleTransactionError, getTimeRemaining } from "../../lib/utils";
+import { handleTransactionError, getTimeRemaining, NFT_PLACEHOLDER_SRC } from "../../lib/utils";
 import { useState, useEffect } from "react";
 import Link from "next/link";
 
@@ -150,28 +150,35 @@ export default function AuctionsPage() {
                 const isEnded = endAt ? endAt < new Date() : false;
 
                 return (
-                  <div key={auctionKey} className="card" style={{ padding: 16 }}>
-                    <Link href={`/asset/${contractAddress}/${tokenId}`}>
-                      <img 
-                        src={auction.image || "/placeholder-nft.png"} 
+                  <div key={auctionKey} className="card nft-card">
+                    <Link href={`/asset/${contractAddress}/${tokenId}`} className="nft-card-link">
+                      <img
+                        src={auction.image || NFT_PLACEHOLDER_SRC}
                         alt={auction.name || `NFT #${tokenId}`}
-                        style={{ width: "100%", height: 200, objectFit: "cover", borderRadius: 8, marginBottom: 12, cursor: "pointer" }}
+                        loading="lazy"
                         onError={(e) => {
-                          e.target.src = "https://via.placeholder.com/400x400?text=NFT";
+                          e.currentTarget.src = NFT_PLACEHOLDER_SRC;
                         }}
                       />
+                      <div className="meta">
+                        <div className="title">{auction.name || `NFT #${tokenId}`}</div>
+                        <div className="sub">{auction.collection || "Auction"}</div>
+                        <div className="price">
+                          <span>Current bid</span>
+                          <span>{currentBid} ETH</span>
+                        </div>
+                        {buyoutPrice ? (
+                          <div className="price">
+                            <span>Buyout</span>
+                            <span>{buyoutPrice} ETH</span>
+                          </div>
+                        ) : null}
+                        <div className="sub">Time left: {timeRemaining}</div>
+                      </div>
                     </Link>
-                    <div style={{ marginBottom: 8, fontWeight: 600 }}>
-                      {auction.name || `NFT #${tokenId}`}
-                    </div>
-                    <div style={{ marginBottom: 8, color: "var(--muted)", fontSize: 14 }}>
-                      <div>Current Bid: {currentBid} ETH</div>
-                      {buyoutPrice && <div>Buyout: {buyoutPrice} ETH</div>}
-                      <div>Time Left: {timeRemaining}</div>
-                    </div>
 
                     {isEnded ? (
-                      <div style={{ marginTop: 12 }}>
+                      <div className="nft-card-actions">
                         <button
                           className="btn primary"
                           onClick={() => handleCloseAuction(contractAddress, tokenId)}
@@ -182,22 +189,14 @@ export default function AuctionsPage() {
                         </button>
                       </div>
                     ) : (
-                      <div style={{ marginTop: 12 }}>
+                      <div className="nft-card-actions">
                         <input
                           type="number"
                           step="0.001"
                           placeholder={`Min: ${currentBid} ETH`}
                           value={bidAmounts[auctionKey] || ""}
                           onChange={(e) => setBidAmounts({ ...bidAmounts, [auctionKey]: e.target.value })}
-                          style={{
-                            width: "100%",
-                            padding: 8,
-                            marginBottom: 8,
-                            borderRadius: 6,
-                            border: "1px solid var(--border)",
-                            background: "var(--bg)",
-                            color: "var(--text)",
-                          }}
+                          inputMode="decimal"
                         />
                         <button
                           className="btn primary"

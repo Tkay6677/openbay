@@ -1,7 +1,7 @@
 [
   {
     "name": "Milady Maker",
-    "image": "/placeholder-nft.png",
+    "image": null,
     "verified": true,
     "floorUsd": 3141,
     "topOfferUsd": 1524,
@@ -20,7 +20,7 @@
   },
   {
     "name": "Pudgy Penguins",
-    "image": "/placeholder-nft.png",
+    "image": null,
     "verified": true,
     "floorUsd": 12800,
     "topOfferUsd": 2260,
@@ -39,7 +39,7 @@
   },
   {
     "name": "Bored Ape Yacht Club",
-    "image": "/placeholder-nft.png",
+    "image": null,
     "verified": true,
     "floorUsd": 13600,
     "topOfferUsd": 1806,
@@ -58,7 +58,7 @@
   },
   {
     "name": "MutantApeYachtClub",
-    "image": "/placeholder-nft.png",
+    "image": null,
     "verified": true,
     "floorUsd": 7781,
     "topOfferUsd": 1312,
@@ -77,7 +77,7 @@
   },
   {
     "name": "Lil Pudgys",
-    "image": "/placeholder-nft.png",
+    "image": null,
     "verified": true,
     "floorUsd": 1432,
     "topOfferUsd": 1130,
@@ -96,7 +96,7 @@
   },
   {
     "name": "Redacted Remilio Babies",
-    "image": "/placeholder-nft.png",
+    "image": null,
     "verified": true,
     "floorUsd": 13500,
     "topOfferUsd": 775,
@@ -115,7 +115,7 @@
   },
   {
     "name": "Azuki",
-    "image": "/placeholder-nft.png",
+    "image": null,
     "verified": true,
     "floorUsd": 2040,
     "topOfferUsd": 1210,
@@ -134,7 +134,7 @@
   },
   {
     "name": "Moonbirds",
-    "image": "/placeholder-nft.png",
+    "image": null,
     "verified": true,
     "floorUsd": 4410,
     "topOfferUsd": 1791,
@@ -153,7 +153,7 @@
   },
   {
     "name": "Doodles",
-    "image": "/placeholder-nft.png",
+    "image": null,
     "verified": true,
     "floorUsd": 1300,
     "topOfferUsd": 723,
@@ -172,7 +172,7 @@
   },
   {
     "name": "VeeFriends",
-    "image": "/placeholder-nft.png",
+    "image": null,
     "verified": true,
     "floorUsd": 3625,
     "topOfferUsd": 1792,
@@ -190,4 +190,3 @@
     }
   }
 ]
-

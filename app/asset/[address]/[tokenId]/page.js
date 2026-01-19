@@ -4,7 +4,7 @@ import NavBar from "../../../../components/NavBar";
 import Footer from "../../../../components/Footer";
 import CreateListingModal from "../../../../components/CreateListingModal";
 import { useWalletConnection } from "../../../../lib/hooks/useWallet";
-import { getTimeRemaining, handleTransactionError, truncateAddress } from "../../../../lib/utils";
+import { getTimeRemaining, handleTransactionError, truncateAddress, NFT_PLACEHOLDER_SRC } from "../../../../lib/utils";
 import { use, useEffect, useMemo, useState } from "react";
 
 export default function AssetDetail({ params }) {
@@ -82,7 +82,7 @@ export default function AssetDetail({ params }) {
     if (!dbAsset) return null;
     return {
       name: dbAsset?.name || (tokenId ? `NFT #${tokenId}` : "NFT"),
-      image: dbAsset?.image || "/placeholder-nft.png",
+      image: dbAsset?.image || NFT_PLACEHOLDER_SRC,
       description: dbAsset?.description || null,
       owner: dbAsset?.owner || null,
       collection: dbAsset?.collection || (contractAddress ? truncateAddress(contractAddress) : "Unknown Collection"),
@@ -137,7 +137,7 @@ export default function AssetDetail({ params }) {
                 alt={view.name}
                 style={{ width: "100%", borderRadius: 16, border: "1px solid var(--border)" }}
                 onError={(e) => {
-                  e.target.src = "https://via.placeholder.com/800x800?text=NFT";
+                  e.currentTarget.src = NFT_PLACEHOLDER_SRC;
                 }}
               />
             </div>
