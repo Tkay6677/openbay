@@ -15,7 +15,7 @@ import trendingData from "../../trending.json";
 
 const mockTokens = [
   {
-    image: "https://picsum.photos/seed/eth/120/120",
+    image: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTJDn0ojTITvcdAzMsfBMJaZC4STaDHzduleQ&s",
     name: "Ethereum",
     symbol: "ETH",
     price: 2800.5,
@@ -23,7 +23,7 @@ const mockTokens = [
     spark: [2750, 2780, 2820, 2790, 2810, 2800],
   },
   {
-    image: "https://picsum.photos/seed/btc/120/120",
+    image: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRaSEEUJQPS_ARZeaL2PTiA5K0qDjwFzMoVQA&s",
     name: "Bitcoin",
     symbol: "BTC",
     price: 43500.25,
@@ -31,7 +31,7 @@ const mockTokens = [
     spark: [44050, 43900, 43780, 43620, 43480, 43500],
   },
   {
-    image: "https://picsum.photos/seed/sol/120/120",
+    image: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTsIsJL3zRgUrkD3yE3lD7LK0wZWSiRyY1GVg&s",
     name: "Solana",
     symbol: "SOL",
     price: 98.42,
@@ -39,7 +39,7 @@ const mockTokens = [
     spark: [92, 93.5, 95.2, 97.1, 98.9, 98.4],
   },
   {
-    image: "https://picsum.photos/seed/base/120/120",
+    image: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSswKRfheiyB5QHc0BgZ8oh5ErqyaX0M_ewbA&s",
     name: "Base",
     symbol: "BASE",
     price: 0.8543,
