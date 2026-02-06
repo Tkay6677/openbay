@@ -18,11 +18,8 @@ export default async function AdminPage() {
   return (
     <>
       <NavBar />
-      <main className="container">
-        <div className="section">
-          <h1 style={{ marginBottom: 24 }}>Admin Dashboard</h1>
-          <AdminDashboard />
-        </div>
+      <main className="container" style={{ paddingTop: 24, paddingBottom: 24 }}>
+        <AdminDashboard />
       </main>
       <Footer />
     </>

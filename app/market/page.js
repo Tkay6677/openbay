@@ -13,7 +13,8 @@ import Sparkline from "../../components/Sparkline";
 import { useEffect, useState } from "react";
 import trendingData from "../../trending.json";
 
-const mockTokens = [
+// Initial fallback tokens (used until live data loads or if fetch fails)
+const initialTokens = [
   {
     image: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTJDn0ojTITvcdAzMsfBMJaZC4STaDHzduleQ&s",
     name: "Ethereum",
@@ -56,6 +57,9 @@ const mockTokens = [
   },
 ];
 
+// `mockTokens` state and market fetch are initialized inside the component
+// to comply with React Hooks rules (hooks must be called from component body).
+
 export default function MarketPage() {
   const [featured, setFeatured] = useState([]);
   const [newListings, setNewListings] = useState([]);
@@ -64,6 +68,41 @@ export default function MarketPage() {
   const [expanded, setExpanded] = useState(false);
   const [trendingRange, setTrendingRange] = useState("24h");
   const trustedBy = ["base", "Barbie", "Paris", "Ubisoft", "FOX Deportes", "rekt", "UFC", "Universal", "Hot Wheels", "LEDGER"];
+
+  // Token strip state: start with fallback, then attempt to load live prices
+  const [tokens, setTokens] = useState(initialTokens);
+
+  // Fetch live token market data from CoinGecko and update displayed tokens.
+  useEffect(() => {
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const ids = ["ethereum", "bitcoin", "solana", "base", "arbitrum"].join(",");
+        const url = `https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=${ids}&sparkline=true`;
+        const res = await fetch(url);
+        const data = await res.json().catch(() => []);
+        if (!Array.isArray(data) || data.length === 0) return;
+
+        const tokens = data.map((t) => ({
+          image: t.image,
+          name: t.name,
+          symbol: (t.symbol || "").toUpperCase(),
+          price: t.current_price,
+          change: t.price_change_percentage_24h_in_currency ?? t.price_change_percentage_24h ?? 0,
+          spark: (t.sparkline_in_7d?.price ?? []).slice(-6),
+        }));
+
+        if (!cancelled && tokens.length) setTokens(tokens);
+      } catch (err) {
+        console.error("Error fetching token market data:", err);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -154,13 +193,13 @@ export default function MarketPage() {
             <div style={{ marginTop: 14 }}>
               <div className="desktop-only">
                 <div className="token-strip">
-                  {mockTokens.slice(0, 4).map((t) => (
+                  {tokens.slice(0, 4).map((t) => (
                     <TokenCard key={t.symbol} token={t} />
                   ))}
                 </div>
               </div>
               <div className="mobile-only">
-                <TokenCarousel tokens={mockTokens} intervalMs={5000} />
+                <TokenCarousel tokens={tokens} intervalMs={5000} />
               </div>
             </div>
             <MobileCollections />

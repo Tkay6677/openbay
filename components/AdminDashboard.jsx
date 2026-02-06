@@ -25,6 +25,9 @@ function isEthAddress(value) {
 function SkeletonTable({ columns = 6, rows = 6, minWidth = 980 } = {}) {
   const cols = Array.from({ length: columns });
   const r = Array.from({ length: rows });
+  // Responsive minWidth for mobile
+  const responsiveMinWidth = typeof window !== "undefined" && window.innerWidth < 768 ? 650 : minWidth;
+  
   return (
     <div
       style={{
@@ -34,7 +37,7 @@ function SkeletonTable({ columns = 6, rows = 6, minWidth = 980 } = {}) {
         background: "rgba(0, 0, 0, 0.18)",
       }}
     >
-      <table style={{ width: "100%", minWidth, borderCollapse: "separate", borderSpacing: 0 }}>
+      <table style={{ width: "100%", minWidth: responsiveMinWidth, borderCollapse: "separate", borderSpacing: 0 }}>
         <thead>
           <tr style={{ background: "rgba(255, 255, 255, 0.02)" }}>
             {cols.map((_, idx) => (
@@ -63,17 +66,17 @@ function SkeletonTable({ columns = 6, rows = 6, minWidth = 980 } = {}) {
 export default function AdminDashboard() {
   const tabs = useMemo(
     () => [
-      { key: "users", label: "Users" },
-      { key: "transactions", label: "Transactions" },
-      { key: "withdrawals", label: "Withdrawals" },
-      { key: "platformWallet", label: "Platform Wallet" },
-      { key: "items", label: "NFTs" },
-      { key: "collections", label: "Collections" },
-      { key: "featuredAssets", label: "Featured NFTs" },
-      { key: "featuredCollections", label: "Featured Collections" },
-      { key: "heroBanners", label: "Hero Carousel" },
-      { key: "mint", label: "Mint NFT" },
-      { key: "seed", label: "Seed DB" },
+      { key: "users", label: "Users", icon: "👥" },
+      { key: "transactions", label: "Transactions", icon: "💸" },
+      { key: "withdrawals", label: "Withdrawals", icon: "💳" },
+      { key: "platformWallet", label: "Platform Wallet", icon: "🏦" },
+      { key: "items", label: "NFTs", icon: "🖼️" },
+      { key: "collections", label: "Collections", icon: "📚" },
+      { key: "featuredAssets", label: "Featured NFTs", icon: "⭐" },
+      { key: "featuredCollections", label: "Featured Collections", icon: "🌟" },
+      { key: "heroBanners", label: "Hero Carousel", icon: "🎠" },
+      { key: "mint", label: "Mint NFT", icon: "✨" },
+      { key: "seed", label: "Seed DB", icon: "🌱" },
     ],
     []
   );
@@ -190,6 +193,9 @@ export default function AdminDashboard() {
 
   const [featuredAssets, setFeaturedAssets] = useState([]);
   const [featuredAssetsLoading, setFeaturedAssetsLoading] = useState(false);
+  const [availableNFTs, setAvailableNFTs] = useState([]);
+  const [availableNFTsLoading, setAvailableNFTsLoading] = useState(false);
+  const [selectedNFTId, setSelectedNFTId] = useState("");
   const [assetForm, setAssetForm] = useState({
     contractAddress: "",
     tokenId: "",
@@ -205,6 +211,9 @@ export default function AdminDashboard() {
 
   const [featuredCollections, setFeaturedCollections] = useState([]);
   const [featuredCollectionsLoading, setFeaturedCollectionsLoading] = useState(false);
+  const [availableCollections, setAvailableCollections] = useState([]);
+  const [availableCollectionsLoading, setAvailableCollectionsLoading] = useState(false);
+  const [selectedCollectionId, setSelectedCollectionId] = useState("");
   const [collectionForm, setCollectionForm] = useState({ name: "", image: "", floor: "0", delta: "0", order: "0" });
   const [collectionStatus, setCollectionStatus] = useState({ isLoading: false, error: null, success: null });
 
@@ -218,6 +227,7 @@ export default function AdminDashboard() {
 
   const [heroBanners, setHeroBanners] = useState([]);
   const [heroBannersLoading, setHeroBannersLoading] = useState(false);
+  const [selectedBannerId, setSelectedBannerId] = useState("");
   const [heroBannerForm, setHeroBannerForm] = useState({
     key: "",
     title: "",
@@ -427,6 +437,34 @@ export default function AdminDashboard() {
     }
   }, [collectionsQuery]);
 
+  const fetchAvailableNFTs = useCallback(async () => {
+    setAvailableNFTsLoading(true);
+    try {
+      const res = await fetch("/api/admin/items?limit=1000");
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Failed to fetch NFTs");
+      setAvailableNFTs(data.items || []);
+    } catch (e) {
+      pushToast({ type: "error", message: e.message || "Failed to fetch NFTs" });
+    } finally {
+      setAvailableNFTsLoading(false);
+    }
+  }, []);
+
+  const fetchAvailableCollections = useCallback(async () => {
+    setAvailableCollectionsLoading(true);
+    try {
+      const res = await fetch("/api/admin/collections?limit=1000");
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Failed to fetch collections");
+      setAvailableCollections(data.collections || []);
+    } catch (e) {
+      pushToast({ type: "error", message: e.message || "Failed to fetch collections" });
+    } finally {
+      setAvailableCollectionsLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     if (activeTab === "users") fetchUsers();
     if (activeTab === "transactions") fetchTransactions();
@@ -434,12 +472,20 @@ export default function AdminDashboard() {
     if (activeTab === "platformWallet") fetchPlatformWallet();
     if (activeTab === "items") fetchItems();
     if (activeTab === "collections") fetchAdminCollections();
-    if (activeTab === "featuredAssets") fetchFeaturedAssets();
-    if (activeTab === "featuredCollections") fetchFeaturedCollections();
+    if (activeTab === "featuredAssets") {
+      fetchFeaturedAssets();
+      fetchAvailableNFTs();
+    }
+    if (activeTab === "featuredCollections") {
+      fetchFeaturedCollections();
+      fetchAvailableCollections();
+    }
     if (activeTab === "heroBanners") fetchHeroBanners();
   }, [
     activeTab,
     fetchAdminCollections,
+    fetchAvailableCollections,
+    fetchAvailableNFTs,
     fetchFeaturedAssets,
     fetchFeaturedCollections,
     fetchHeroBanners,
@@ -611,8 +657,30 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleNFTSelect = (nftId) => {
+    setSelectedNFTId(nftId);
+    const nft = availableNFTs.find((n) => n.id === nftId);
+    if (nft) {
+      setAssetForm({
+        contractAddress: nft.contractAddress || "",
+        tokenId: nft.tokenId || "",
+        name: nft.name || "",
+        collection: nft.collection || "",
+        image: nft.image || "",
+        priceEth: String(nft.priceEth || 0),
+        owner: nft.owner || nft.ownerId || "",
+        description: nft.description || "",
+        order: "0",
+      });
+    }
+  };
+
   const submitFeaturedAsset = async (e) => {
     e.preventDefault();
+    if (!selectedNFTId) {
+      setAssetStatus({ isLoading: false, error: "Please select an NFT", success: null });
+      return;
+    }
     setAssetStatus({ isLoading: true, error: null, success: null });
     try {
       const res = await fetch("/api/admin/featured-assets", {
@@ -623,6 +691,7 @@ export default function AdminDashboard() {
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || "Failed to save asset");
       setAssetStatus({ isLoading: false, error: null, success: "Saved" });
+      setSelectedNFTId("");
       setAssetForm({
         contractAddress: "",
         tokenId: "",
@@ -663,8 +732,26 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleCollectionSelect = (collectionId) => {
+    setSelectedCollectionId(collectionId);
+    const collection = availableCollections.find((c) => c.id === collectionId);
+    if (collection) {
+      setCollectionForm({
+        name: collection.name || "",
+        image: collection.image || "",
+        floor: "0",
+        delta: "0",
+        order: "0",
+      });
+    }
+  };
+
   const submitFeaturedCollection = async (e) => {
     e.preventDefault();
+    if (!selectedCollectionId) {
+      setCollectionStatus({ isLoading: false, error: "Please select a collection", success: null });
+      return;
+    }
     setCollectionStatus({ isLoading: true, error: null, success: null });
     try {
       const res = await fetch("/api/admin/featured-collections", {
@@ -675,6 +762,7 @@ export default function AdminDashboard() {
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || "Failed to save collection");
       setCollectionStatus({ isLoading: false, error: null, success: "Saved" });
+      setSelectedCollectionId("");
       setCollectionForm({ name: "", image: "", floor: "0", delta: "0", order: "0" });
       fetchFeaturedCollections();
     } catch (err) {
@@ -808,7 +896,8 @@ export default function AdminDashboard() {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || "Failed to save hero banner");
-      setHeroBannerStatus({ isLoading: false, error: null, success: "Saved" });
+      setHeroBannerStatus({ isLoading: false, error: null, success: selectedBannerId ? "Updated" : "Created" });
+      setSelectedBannerId("");
       setHeroBannerForm({
         key: "",
         title: "",
@@ -870,7 +959,8 @@ export default function AdminDashboard() {
               }}
               type="button"
             >
-              {t.label}
+              <span>{t.icon}</span>
+              <span>{t.label}</span>
             </button>
           ))}
         </div>
@@ -886,11 +976,11 @@ export default function AdminDashboard() {
         <div className="admin-content">
 
       {activeTab === "users" ? (
-        <div style={{ display: "grid", gap: 16 }}>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center", marginBottom: 8 }}>
             <input
-              className="btn"
-              style={{ cursor: "text", flex: "1 1 260px", minWidth: 0 }}
+              className="admin-form-input"
+              style={{ flex: "1 1 260px", minWidth: 0 }}
               value={usersQuery}
               onChange={(e) => setUsersQuery(e.target.value)}
               placeholder="Search users (email / name / wallet)"
@@ -900,29 +990,26 @@ export default function AdminDashboard() {
             </button>
           </div>
 
-          <form onSubmit={submitAdjustBalance} style={{ display: "grid", gap: 10 }}>
-            <div style={{ fontWeight: 700 }}>Adjust User Balance</div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 8 }}>
+          <form onSubmit={submitAdjustBalance} className="admin-card" style={{ display: "grid", gap: 16,}}>
+            <div className="admin-form-label">Adjust User Balance</div>
+            <div className="admin-form-group" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))" }}>
               <input
-                className="btn"
-                style={{ cursor: "text" }}
+                className="admin-form-input"
                 value={adjustForm.userId}
                 onChange={(e) => setAdjustForm((s) => ({ ...s, userId: e.target.value }))}
                 placeholder="User ID"
                 required
               />
               <select
-                className="btn"
+                className="admin-form-input"
                 value={adjustForm.mode}
                 onChange={(e) => setAdjustForm((s) => ({ ...s, mode: e.target.value }))}
-                style={{ padding: "6px 12px" }}
               >
                 <option value="delta">Adjust</option>
                 <option value="set">Set</option>
               </select>
               <input
-                className="btn"
-                style={{ cursor: "text" }}
+                className="admin-form-input"
                 value={adjustForm.amount}
                 onChange={(e) => setAdjustForm((s) => ({ ...s, amount: e.target.value }))}
                 placeholder={adjustForm.mode === "set" ? "Balance (e.g. 1.25)" : "Amount (e.g. 0.25 or -0.10)"}
@@ -931,47 +1018,43 @@ export default function AdminDashboard() {
               />
             </div>
             <input
-              className="btn"
-              style={{ cursor: "text" }}
+              className="admin-form-input"
               value={adjustForm.reason}
               onChange={(e) => setAdjustForm((s) => ({ ...s, reason: e.target.value }))}
               placeholder="Reason (optional)"
             />
-            {adjustStatus.error ? <div style={{ color: "var(--red)" }}>{adjustStatus.error}</div> : null}
-            {adjustStatus.success ? <div style={{ color: "var(--green)" }}>{adjustStatus.success}</div> : null}
+            {adjustStatus.error ? <div className="admin-alert error">{adjustStatus.error}</div> : null}
+            {adjustStatus.success ? <div className="admin-alert success">{adjustStatus.success}</div> : null}
             <button className="btn primary" type="submit" disabled={adjustStatus.isLoading}>
               {adjustStatus.isLoading ? "Updating..." : "Apply"}
             </button>
           </form>
 
-          <form onSubmit={submitUserEdit} style={{ display: "grid", gap: 10 }}>
-            <div style={{ fontWeight: 700 }}>Update User</div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 8 }}>
+          <form onSubmit={submitUserEdit} className="admin-card" style={{ display: "grid", gap: 16 }}>
+            <div className="admin-form-label">Update User</div>
+            <div className="admin-form-group" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))" }}>
               <input
-                className="btn"
-                style={{ cursor: "text" }}
+                className="admin-form-input"
                 value={userEditForm.userId}
                 onChange={(e) => setUserEditForm((s) => ({ ...s, userId: e.target.value }))}
                 placeholder="User ID"
                 required
               />
               <input
-                className="btn"
-                style={{ cursor: "text" }}
+                className="admin-form-input"
                 value={userEditForm.name}
                 onChange={(e) => setUserEditForm((s) => ({ ...s, name: e.target.value }))}
                 placeholder="Name (optional)"
               />
               <input
-                className="btn"
-                style={{ cursor: "text" }}
+                className="admin-form-input"
                 value={userEditForm.walletAddress}
                 onChange={(e) => setUserEditForm((s) => ({ ...s, walletAddress: e.target.value }))}
                 placeholder="Wallet address (optional)"
               />
             </div>
-            {userEditStatus.error ? <div style={{ color: "var(--red)" }}>{userEditStatus.error}</div> : null}
-            {userEditStatus.success ? <div style={{ color: "var(--green)" }}>{userEditStatus.success}</div> : null}
+            {userEditStatus.error ? <div className="admin-alert error">{userEditStatus.error}</div> : null}
+            {userEditStatus.success ? <div className="admin-alert success">{userEditStatus.success}</div> : null}
             <button className="btn primary" type="submit" disabled={userEditStatus.isLoading}>
               {userEditStatus.isLoading ? "Saving..." : "Save"}
             </button>
@@ -982,7 +1065,7 @@ export default function AdminDashboard() {
               usersLoading ? (
                 <SkeletonTable columns={7} rows={6} minWidth={980} />
               ) : (
-                <div style={{ display: "grid", gap: 10, padding: 12, borderRadius: 14, border: "1px solid rgba(255,255,255,0.08)", background: "rgba(0,0,0,0.18)" }}>
+                <div className="admin-card" style={{ display: "grid", gap: 10 }}>
                   <div style={{ fontWeight: 800 }}>No users found</div>
                   <div style={{ color: "rgba(255,255,255,0.60)", fontSize: 13 }}>Try a different search query.</div>
                   {usersQuery.trim() ? (
@@ -1002,67 +1085,46 @@ export default function AdminDashboard() {
                 </div>
               )
             ) : (
-              <div
-                style={{
-                  overflowX: "auto",
-                  border: "1px solid rgba(255, 255, 255, 0.08)",
-                  borderRadius: 14,
-                  background: "rgba(0, 0, 0, 0.18)",
-                }}
-              >
-                <table style={{ width: "100%", minWidth: 980, borderCollapse: "separate", borderSpacing: 0 }}>
+              <div className="admin-table-wrapper">
+                <table className="admin-table" style={{ minWidth: typeof window !== "undefined" && window.innerWidth < 768 ? 650 : 980 }}>
                   <thead>
-                    <tr style={{ background: "rgba(255, 255, 255, 0.02)" }}>
-                      <th style={{ textAlign: "left", padding: "10px 12px", fontSize: 11, color: "rgba(255,255,255,0.55)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
-                        User
-                      </th>
-                      <th style={{ textAlign: "left", padding: "10px 12px", fontSize: 11, color: "rgba(255,255,255,0.55)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
-                        Wallet
-                      </th>
-                      <th style={{ textAlign: "right", padding: "10px 12px", fontSize: 11, color: "rgba(255,255,255,0.55)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
-                        Balance
-                      </th>
-                      <th style={{ textAlign: "right", padding: "10px 12px", fontSize: 11, color: "rgba(255,255,255,0.55)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
-                        Deposited
-                      </th>
-                      <th style={{ textAlign: "right", padding: "10px 12px", fontSize: 11, color: "rgba(255,255,255,0.55)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
-                        Withdrawn
-                      </th>
-                      <th style={{ textAlign: "left", padding: "10px 12px", fontSize: 11, color: "rgba(255,255,255,0.55)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
-                        Created
-                      </th>
-                      <th style={{ textAlign: "right", padding: "10px 12px", fontSize: 11, color: "rgba(255,255,255,0.55)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
-                        Actions
-                      </th>
+                    <tr>
+                      <th>User</th>
+                      <th>Wallet</th>
+                      <th style={{ textAlign: "right" }}>Balance</th>
+                      <th style={{ textAlign: "right" }}>Deposited</th>
+                      <th style={{ textAlign: "right" }}>Withdrawn</th>
+                      <th>Created</th>
+                      <th style={{ textAlign: "right" }}>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {users.map((u, idx) => (
+                    {users.map((u) => (
                       <tr key={u.id}>
-                        <td style={{ padding: "10px 12px", borderTop: idx === 0 ? "1px solid rgba(255,255,255,0.06)" : "1px solid rgba(255,255,255,0.06)" }}>
+                        <td>
                           <div style={{ fontWeight: 800, fontSize: 13 }}>{u.email || u.name || u.id}</div>
                           <div style={{ fontSize: 12, color: "rgba(255,255,255,0.55)" }}>
                             {u.provider || "—"} · <span style={{ fontFamily: "monospace" }}>{u.id}</span>
                           </div>
                         </td>
-                        <td style={{ padding: "10px 12px", borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+                        <td>
                           <div style={{ fontFamily: "monospace", fontSize: 12 }}>
                             {u.walletAddress ? truncateAddress(u.walletAddress) : "—"}
                           </div>
                         </td>
-                        <td style={{ padding: "10px 12px", textAlign: "right", borderTop: "1px solid rgba(255,255,255,0.06)", fontVariantNumeric: "tabular-nums" }}>
+                        <td style={{ textAlign: "right", fontVariantNumeric: "tabular-nums" }}>
                           {formatEth(u.virtualBalance)} ETH
                         </td>
-                        <td style={{ padding: "10px 12px", textAlign: "right", borderTop: "1px solid rgba(255,255,255,0.06)", fontVariantNumeric: "tabular-nums", color: "rgba(255,255,255,0.82)" }}>
+                        <td style={{ textAlign: "right", fontVariantNumeric: "tabular-nums" }}>
                           {formatEth(u.totalDeposited)} ETH
                         </td>
-                        <td style={{ padding: "10px 12px", textAlign: "right", borderTop: "1px solid rgba(255,255,255,0.06)", fontVariantNumeric: "tabular-nums", color: "rgba(255,255,255,0.82)" }}>
+                        <td style={{ textAlign: "right", fontVariantNumeric: "tabular-nums" }}>
                           {formatEth(u.totalWithdrawn)} ETH
                         </td>
-                        <td style={{ padding: "10px 12px", borderTop: "1px solid rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.65)", fontSize: 12 }}>
+                        <td style={{ color: "rgba(255,255,255,0.65)", fontSize: 12 }}>
                           {formatDate(u.createdAt)}
                         </td>
-                        <td style={{ padding: "10px 12px", borderTop: "1px solid rgba(255,255,255,0.06)", textAlign: "right" }}>
+                        <td style={{ textAlign: "right" }}>
                           <div style={{ display: "inline-flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
                             <button
                               className="btn"
@@ -1154,7 +1216,7 @@ export default function AdminDashboard() {
                 background: "rgba(0, 0, 0, 0.18)",
               }}
             >
-              <table style={{ width: "100%", minWidth: 980, borderCollapse: "separate", borderSpacing: 0 }}>
+              <table style={{ width: "100%", minWidth: typeof window !== "undefined" && window.innerWidth < 768 ? 650 : 980, borderCollapse: "separate", borderSpacing: 0 }}>
                 <thead>
                   <tr style={{ background: "rgba(255, 255, 255, 0.02)" }}>
                     <th style={{ textAlign: "left", padding: "10px 12px", fontSize: 11, color: "rgba(255,255,255,0.55)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
@@ -1292,7 +1354,7 @@ export default function AdminDashboard() {
                 background: "rgba(0, 0, 0, 0.18)",
               }}
             >
-              <table style={{ width: "100%", minWidth: 980, borderCollapse: "separate", borderSpacing: 0 }}>
+              <table style={{ width: "100%", minWidth: typeof window !== "undefined" && window.innerWidth < 768 ? 650 : 980, borderCollapse: "separate", borderSpacing: 0 }}>
                 <thead>
                   <tr style={{ background: "rgba(255, 255, 255, 0.02)" }}>
                     <th style={{ textAlign: "left", padding: "10px 12px", fontSize: 11, color: "rgba(255,255,255,0.55)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
@@ -1716,116 +1778,196 @@ export default function AdminDashboard() {
 
       {activeTab === "heroBanners" ? (
         <div style={{ display: "grid", gap: 16 }}>
-          <form onSubmit={submitHeroBanner} style={{ display: "grid", gap: 10 }}>
-            <div style={{ fontWeight: 700 }}>Add / Update Hero Banner</div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 8 }}>
+          <form onSubmit={submitHeroBanner} className="admin-card" style={{ display: "grid", gap: 16 }}>
+            <div className="admin-form-label">Add / Update Hero Banner</div>
+            <div className="admin-form-group">
+              <label style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", marginBottom: 6 }}>Select Existing Banner (optional)</label>
+              <select
+                className="admin-form-input"
+                value={selectedBannerId}
+                onChange={(e) => {
+                  setSelectedBannerId(e.target.value);
+                  if (e.target.value) {
+                    const banner = heroBanners.find((b) => b.id === e.target.value);
+                    if (banner) {
+                      setHeroBannerForm({
+                        key: banner.key || "",
+                        title: banner.title || "",
+                        by: banner.by || "",
+                        image: banner.image || "",
+                        order: String(banner.order ?? 0),
+                        stat1Label: banner.stats?.[0]?.label || "",
+                        stat1Value: banner.stats?.[0]?.value || "",
+                        stat2Label: banner.stats?.[1]?.label || "",
+                        stat2Value: banner.stats?.[1]?.value || "",
+                        stat3Label: banner.stats?.[2]?.label || "",
+                        stat3Value: banner.stats?.[2]?.value || "",
+                        stat4Label: banner.stats?.[3]?.label || "",
+                        stat4Value: banner.stats?.[3]?.value || "",
+                      });
+                    }
+                  } else {
+                    setHeroBannerForm({
+                      key: "",
+                      title: "",
+                      by: "",
+                      image: "",
+                      order: "0",
+                      stat1Label: "",
+                      stat1Value: "",
+                      stat2Label: "",
+                      stat2Value: "",
+                      stat3Label: "",
+                      stat3Value: "",
+                      stat4Label: "",
+                      stat4Value: "",
+                    });
+                  }
+                }}
+                disabled={heroBannersLoading}
+              >
+                <option value="">-- Create New Banner --</option>
+                {heroBanners.map((banner) => (
+                  <option key={banner.id} value={banner.id}>
+                    {banner.title || banner.key || "Untitled"} (Order: {banner.order ?? 0})
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>
+              <div>
+                <label style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", marginBottom: 6, display: "block" }}>Key (optional)</label>
+                <input
+                  className="admin-form-input"
+                  value={heroBannerForm.key}
+                  onChange={(e) => setHeroBannerForm((s) => ({ ...s, key: e.target.value }))}
+                  placeholder="Key (optional)"
+                />
+              </div>
+              <div>
+                <label style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", marginBottom: 6, display: "block" }}>Order</label>
+                <input
+                  className="admin-form-input"
+                  value={heroBannerForm.order}
+                  onChange={(e) => setHeroBannerForm((s) => ({ ...s, order: e.target.value }))}
+                  placeholder="Order"
+                  inputMode="numeric"
+                />
+              </div>
+            </div>
+            <div className="admin-form-group">
+              <label style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", marginBottom: 6 }}>Title *</label>
               <input
-                className="btn"
-                style={{ cursor: "text" }}
-                value={heroBannerForm.key}
-                onChange={(e) => setHeroBannerForm((s) => ({ ...s, key: e.target.value }))}
-                placeholder="Key (optional)"
-              />
-              <input
-                className="btn"
-                style={{ cursor: "text" }}
-                value={heroBannerForm.order}
-                onChange={(e) => setHeroBannerForm((s) => ({ ...s, order: e.target.value }))}
-                placeholder="Order"
-                inputMode="numeric"
+                className="admin-form-input"
+                value={heroBannerForm.title}
+                onChange={(e) => setHeroBannerForm((s) => ({ ...s, title: e.target.value }))}
+                placeholder="Title"
+                required
               />
             </div>
-            <input
-              className="btn"
-              style={{ cursor: "text" }}
-              value={heroBannerForm.title}
-              onChange={(e) => setHeroBannerForm((s) => ({ ...s, title: e.target.value }))}
-              placeholder="Title"
-              required
-            />
-            <input
-              className="btn"
-              style={{ cursor: "text" }}
-              value={heroBannerForm.by}
-              onChange={(e) => setHeroBannerForm((s) => ({ ...s, by: e.target.value }))}
-              placeholder="By (optional)"
-            />
-            <input
-              className="btn"
-              style={{ cursor: "text" }}
-              value={heroBannerForm.image}
-              onChange={(e) => setHeroBannerForm((s) => ({ ...s, image: e.target.value }))}
-              placeholder="Image URL"
-              required
-            />
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 8 }}>
+            <div className="admin-form-group">
+              <label style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", marginBottom: 6 }}>By (optional)</label>
               <input
-                className="btn"
-                style={{ cursor: "text" }}
-                value={heroBannerForm.stat1Label}
-                onChange={(e) => setHeroBannerForm((s) => ({ ...s, stat1Label: e.target.value }))}
-                placeholder="Stat 1 label"
-              />
-              <input
-                className="btn"
-                style={{ cursor: "text" }}
-                value={heroBannerForm.stat1Value}
-                onChange={(e) => setHeroBannerForm((s) => ({ ...s, stat1Value: e.target.value }))}
-                placeholder="Stat 1 value"
+                className="admin-form-input"
+                value={heroBannerForm.by}
+                onChange={(e) => setHeroBannerForm((s) => ({ ...s, by: e.target.value }))}
+                placeholder="By (optional)"
               />
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 8 }}>
+            <div className="admin-form-group">
+              <label style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", marginBottom: 6 }}>Image URL *</label>
               <input
-                className="btn"
-                style={{ cursor: "text" }}
-                value={heroBannerForm.stat2Label}
-                onChange={(e) => setHeroBannerForm((s) => ({ ...s, stat2Label: e.target.value }))}
-                placeholder="Stat 2 label"
-              />
-              <input
-                className="btn"
-                style={{ cursor: "text" }}
-                value={heroBannerForm.stat2Value}
-                onChange={(e) => setHeroBannerForm((s) => ({ ...s, stat2Value: e.target.value }))}
-                placeholder="Stat 2 value"
+                className="admin-form-input"
+                value={heroBannerForm.image}
+                onChange={(e) => setHeroBannerForm((s) => ({ ...s, image: e.target.value }))}
+                placeholder="Image URL"
+                required
               />
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 8 }}>
-              <input
-                className="btn"
-                style={{ cursor: "text" }}
-                value={heroBannerForm.stat3Label}
-                onChange={(e) => setHeroBannerForm((s) => ({ ...s, stat3Label: e.target.value }))}
-                placeholder="Stat 3 label"
-              />
-              <input
-                className="btn"
-                style={{ cursor: "text" }}
-                value={heroBannerForm.stat3Value}
-                onChange={(e) => setHeroBannerForm((s) => ({ ...s, stat3Value: e.target.value }))}
-                placeholder="Stat 3 value"
-              />
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12 }}>
+              <div>
+                <label style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", marginBottom: 6, display: "block" }}>Stat 1 Label</label>
+                <input
+                  className="admin-form-input"
+                  value={heroBannerForm.stat1Label}
+                  onChange={(e) => setHeroBannerForm((s) => ({ ...s, stat1Label: e.target.value }))}
+                  placeholder="Stat 1 label"
+                />
+              </div>
+              <div>
+                <label style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", marginBottom: 6, display: "block" }}>Stat 1 Value</label>
+                <input
+                  className="admin-form-input"
+                  value={heroBannerForm.stat1Value}
+                  onChange={(e) => setHeroBannerForm((s) => ({ ...s, stat1Value: e.target.value }))}
+                  placeholder="Stat 1 value"
+                />
+              </div>
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 8 }}>
-              <input
-                className="btn"
-                style={{ cursor: "text" }}
-                value={heroBannerForm.stat4Label}
-                onChange={(e) => setHeroBannerForm((s) => ({ ...s, stat4Label: e.target.value }))}
-                placeholder="Stat 4 label"
-              />
-              <input
-                className="btn"
-                style={{ cursor: "text" }}
-                value={heroBannerForm.stat4Value}
-                onChange={(e) => setHeroBannerForm((s) => ({ ...s, stat4Value: e.target.value }))}
-                placeholder="Stat 4 value"
-              />
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12 }}>
+              <div>
+                <label style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", marginBottom: 6, display: "block" }}>Stat 2 Label</label>
+                <input
+                  className="admin-form-input"
+                  value={heroBannerForm.stat2Label}
+                  onChange={(e) => setHeroBannerForm((s) => ({ ...s, stat2Label: e.target.value }))}
+                  placeholder="Stat 2 label"
+                />
+              </div>
+              <div>
+                <label style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", marginBottom: 6, display: "block" }}>Stat 2 Value</label>
+                <input
+                  className="admin-form-input"
+                  value={heroBannerForm.stat2Value}
+                  onChange={(e) => setHeroBannerForm((s) => ({ ...s, stat2Value: e.target.value }))}
+                  placeholder="Stat 2 value"
+                />
+              </div>
             </div>
-            {heroBannerStatus.error ? <div style={{ color: "var(--red)" }}>{heroBannerStatus.error}</div> : null}
-            {heroBannerStatus.success ? <div style={{ color: "var(--green)" }}>{heroBannerStatus.success}</div> : null}
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12 }}>
+              <div>
+                <label style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", marginBottom: 6, display: "block" }}>Stat 3 Label</label>
+                <input
+                  className="admin-form-input"
+                  value={heroBannerForm.stat3Label}
+                  onChange={(e) => setHeroBannerForm((s) => ({ ...s, stat3Label: e.target.value }))}
+                  placeholder="Stat 3 label"
+                />
+              </div>
+              <div>
+                <label style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", marginBottom: 6, display: "block" }}>Stat 3 Value</label>
+                <input
+                  className="admin-form-input"
+                  value={heroBannerForm.stat3Value}
+                  onChange={(e) => setHeroBannerForm((s) => ({ ...s, stat3Value: e.target.value }))}
+                  placeholder="Stat 3 value"
+                />
+              </div>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12 }}>
+              <div>
+                <label style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", marginBottom: 6, display: "block" }}>Stat 4 Label</label>
+                <input
+                  className="admin-form-input"
+                  value={heroBannerForm.stat4Label}
+                  onChange={(e) => setHeroBannerForm((s) => ({ ...s, stat4Label: e.target.value }))}
+                  placeholder="Stat 4 label"
+                />
+              </div>
+              <div>
+                <label style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", marginBottom: 6, display: "block" }}>Stat 4 Value</label>
+                <input
+                  className="admin-form-input"
+                  value={heroBannerForm.stat4Value}
+                  onChange={(e) => setHeroBannerForm((s) => ({ ...s, stat4Value: e.target.value }))}
+                  placeholder="Stat 4 value"
+                />
+              </div>
+            </div>
+            {heroBannerStatus.error ? <div className="admin-alert error">{heroBannerStatus.error}</div> : null}
+            {heroBannerStatus.success ? <div className="admin-alert success">{heroBannerStatus.success}</div> : null}
             <button className="btn primary" type="submit" disabled={heroBannerStatus.isLoading}>
-              {heroBannerStatus.isLoading ? "Saving..." : "Save"}
+              {heroBannerStatus.isLoading ? "Saving..." : selectedBannerId ? "Update Banner" : "Create Banner"}
             </button>
           </form>
 
@@ -1860,87 +2002,51 @@ export default function AdminDashboard() {
 
       {activeTab === "featuredAssets" ? (
         <div style={{ display: "grid", gap: 16 }}>
-          <form onSubmit={submitFeaturedAsset} style={{ display: "grid", gap: 10 }}>
-            <div style={{ fontWeight: 700 }}>Add / Update Featured NFT</div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 8 }}>
-              <input
-                className="btn"
-                style={{ cursor: "text" }}
-                value={assetForm.contractAddress}
-                onChange={(e) => setAssetForm((s) => ({ ...s, contractAddress: e.target.value }))}
-                placeholder="Contract address"
+          <form onSubmit={submitFeaturedAsset} className="admin-card" style={{ display: "grid", gap: 16 }}>
+            <div className="admin-form-label">Add Featured NFT</div>
+            <div className="admin-form-group">
+              <label style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", marginBottom: 6 }}>Select NFT</label>
+              <select
+                className="admin-form-input"
+                value={selectedNFTId}
+                onChange={(e) => handleNFTSelect(e.target.value)}
+                disabled={availableNFTsLoading}
                 required
-              />
-              <input
-                className="btn"
-                style={{ cursor: "text" }}
-                value={assetForm.tokenId}
-                onChange={(e) => setAssetForm((s) => ({ ...s, tokenId: e.target.value }))}
-                placeholder="Token ID"
-                required
-              />
+              >
+                <option value="">-- Select an NFT --</option>
+                {availableNFTs.map((nft) => (
+                  <option key={nft.id} value={nft.id}>
+                    {nft.name || "Unnamed"} {nft.collection ? `(${nft.collection})` : ""} - {truncateAddress(nft.contractAddress)} #{nft.tokenId}
+                  </option>
+                ))}
+              </select>
+              {availableNFTsLoading && <div style={{ fontSize: 12, color: "rgba(255,255,255,0.5)" }}>Loading NFTs...</div>}
             </div>
-            <input
-              className="btn"
-              style={{ cursor: "text" }}
-              value={assetForm.name}
-              onChange={(e) => setAssetForm((s) => ({ ...s, name: e.target.value }))}
-              placeholder="Name"
-              required
-            />
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 8 }}>
-              <input
-                className="btn"
-                style={{ cursor: "text" }}
-                value={assetForm.collection}
-                onChange={(e) => setAssetForm((s) => ({ ...s, collection: e.target.value }))}
-                placeholder="Collection name"
-              />
-              <input
-                className="btn"
-                style={{ cursor: "text" }}
-                value={assetForm.owner}
-                onChange={(e) => setAssetForm((s) => ({ ...s, owner: e.target.value }))}
-                placeholder="Owner (optional)"
-              />
-            </div>
-            <input
-              className="btn"
-              style={{ cursor: "text" }}
-              value={assetForm.image}
-              onChange={(e) => setAssetForm((s) => ({ ...s, image: e.target.value }))}
-              placeholder="Image URL"
-              required
-            />
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 8 }}>
-              <input
-                className="btn"
-                style={{ cursor: "text" }}
-                value={assetForm.priceEth}
-                onChange={(e) => setAssetForm((s) => ({ ...s, priceEth: e.target.value }))}
-                placeholder="Price (ETH)"
-                inputMode="decimal"
-              />
-              <input
-                className="btn"
-                style={{ cursor: "text" }}
-                value={assetForm.order}
-                onChange={(e) => setAssetForm((s) => ({ ...s, order: e.target.value }))}
-                placeholder="Order"
-                inputMode="numeric"
-              />
-            </div>
-            <textarea
-              className="btn"
-              style={{ cursor: "text", minHeight: 90, padding: 10 }}
-              value={assetForm.description}
-              onChange={(e) => setAssetForm((s) => ({ ...s, description: e.target.value }))}
-              placeholder="Description (optional)"
-            />
-            {assetStatus.error ? <div style={{ color: "var(--red)" }}>{assetStatus.error}</div> : null}
-            {assetStatus.success ? <div style={{ color: "var(--green)" }}>{assetStatus.success}</div> : null}
-            <button className="btn primary" type="submit" disabled={assetStatus.isLoading}>
-              {assetStatus.isLoading ? "Saving..." : "Save"}
+            {selectedNFTId && (
+              <>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12 }}>
+                  <div>
+                    <label style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", marginBottom: 6, display: "block" }}>Order</label>
+                    <input
+                      className="admin-form-input"
+                      value={assetForm.order}
+                      onChange={(e) => setAssetForm((s) => ({ ...s, order: e.target.value }))}
+                      placeholder="Order"
+                      inputMode="numeric"
+                    />
+                  </div>
+                </div>
+                {assetForm.image && (
+                  <div>
+                    <img src={assetForm.image} alt={assetForm.name} style={{ maxWidth: "200px", maxHeight: "200px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.1)" }} />
+                  </div>
+                )}
+              </>
+            )}
+            {assetStatus.error ? <div className="admin-alert error">{assetStatus.error}</div> : null}
+            {assetStatus.success ? <div className="admin-alert success">{assetStatus.success}</div> : null}
+            <button className="btn primary" type="submit" disabled={assetStatus.isLoading || !selectedNFTId}>
+              {assetStatus.isLoading ? "Saving..." : "Add to Featured"}
             </button>
           </form>
 
@@ -1962,7 +2068,7 @@ export default function AdminDashboard() {
                   background: "rgba(0, 0, 0, 0.18)",
                 }}
               >
-                <table style={{ width: "100%", minWidth: 820, borderCollapse: "separate", borderSpacing: 0 }}>
+                <table style={{ width: "100%", minWidth: typeof window !== "undefined" && window.innerWidth < 768 ? 600 : 820, borderCollapse: "separate", borderSpacing: 0 }}>
                   <thead>
                     <tr style={{ background: "rgba(255, 255, 255, 0.02)" }}>
                       <th style={{ textAlign: "left", padding: "10px 12px", fontSize: 11, color: "rgba(255,255,255,0.55)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
@@ -2011,53 +2117,69 @@ export default function AdminDashboard() {
 
       {activeTab === "featuredCollections" ? (
         <div style={{ display: "grid", gap: 16 }}>
-          <form onSubmit={submitFeaturedCollection} style={{ display: "grid", gap: 10 }}>
-            <div style={{ fontWeight: 700 }}>Add / Update Featured Collection</div>
-            <input
-              className="btn"
-              style={{ cursor: "text" }}
-              value={collectionForm.name}
-              onChange={(e) => setCollectionForm((s) => ({ ...s, name: e.target.value }))}
-              placeholder="Name"
-              required
-            />
-            <input
-              className="btn"
-              style={{ cursor: "text" }}
-              value={collectionForm.image}
-              onChange={(e) => setCollectionForm((s) => ({ ...s, image: e.target.value }))}
-              placeholder="Image URL"
-            />
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 8 }}>
-              <input
-                className="btn"
-                style={{ cursor: "text" }}
-                value={collectionForm.floor}
-                onChange={(e) => setCollectionForm((s) => ({ ...s, floor: e.target.value }))}
-                placeholder="Floor"
-                inputMode="decimal"
-              />
-              <input
-                className="btn"
-                style={{ cursor: "text" }}
-                value={collectionForm.delta}
-                onChange={(e) => setCollectionForm((s) => ({ ...s, delta: e.target.value }))}
-                placeholder="Delta %"
-                inputMode="decimal"
-              />
-              <input
-                className="btn"
-                style={{ cursor: "text" }}
-                value={collectionForm.order}
-                onChange={(e) => setCollectionForm((s) => ({ ...s, order: e.target.value }))}
-                placeholder="Order"
-                inputMode="numeric"
-              />
+          <form onSubmit={submitFeaturedCollection} className="admin-card" style={{ display: "grid", gap: 16 }}>
+            <div className="admin-form-label">Add Featured Collection</div>
+            <div className="admin-form-group">
+              <label style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", marginBottom: 6 }}>Select Collection</label>
+              <select
+                className="admin-form-input"
+                value={selectedCollectionId}
+                onChange={(e) => handleCollectionSelect(e.target.value)}
+                disabled={availableCollectionsLoading}
+                required
+              >
+                <option value="">-- Select a Collection --</option>
+                {availableCollections.map((col) => (
+                  <option key={col.id} value={col.id}>
+                    {col.name || "Unnamed"} {col.contractAddress ? `(${truncateAddress(col.contractAddress)})` : ""}
+                  </option>
+                ))}
+              </select>
+              {availableCollectionsLoading && <div style={{ fontSize: 12, color: "rgba(255,255,255,0.5)" }}>Loading Collections...</div>}
             </div>
-            {collectionStatus.error ? <div style={{ color: "var(--red)" }}>{collectionStatus.error}</div> : null}
-            {collectionStatus.success ? <div style={{ color: "var(--green)" }}>{collectionStatus.success}</div> : null}
-            <button className="btn primary" type="submit" disabled={collectionStatus.isLoading}>
-              {collectionStatus.isLoading ? "Saving..." : "Save"}
+            {selectedCollectionId && (
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12 }}>
+                <div>
+                  <label style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", marginBottom: 6, display: "block" }}>Floor Price (ETH)</label>
+                  <input
+                    className="admin-form-input"
+                    value={collectionForm.floor}
+                    onChange={(e) => setCollectionForm((s) => ({ ...s, floor: e.target.value }))}
+                    placeholder="Floor"
+                    inputMode="decimal"
+                  />
+                </div>
+                <div>
+                  <label style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", marginBottom: 6, display: "block" }}>Delta %</label>
+                  <input
+                    className="admin-form-input"
+                    value={collectionForm.delta}
+                    onChange={(e) => setCollectionForm((s) => ({ ...s, delta: e.target.value }))}
+                    placeholder="Delta %"
+                    inputMode="decimal"
+                  />
+                </div>
+                <div>
+                  <label style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", marginBottom: 6, display: "block" }}>Order</label>
+                  <input
+                    className="admin-form-input"
+                    value={collectionForm.order}
+                    onChange={(e) => setCollectionForm((s) => ({ ...s, order: e.target.value }))}
+                    placeholder="Order"
+                    inputMode="numeric"
+                  />
+                </div>
+              </div>
+            )}
+            {collectionForm.image && selectedCollectionId && (
+              <div>
+                <img src={collectionForm.image} alt={collectionForm.name} style={{ maxWidth: "200px", maxHeight: "200px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.1)" }} />
+              </div>
+            )}
+            {collectionStatus.error ? <div className="admin-alert error">{collectionStatus.error}</div> : null}
+            {collectionStatus.success ? <div className="admin-alert success">{collectionStatus.success}</div> : null}
+            <button className="btn primary" type="submit" disabled={collectionStatus.isLoading || !selectedCollectionId}>
+              {collectionStatus.isLoading ? "Saving..." : "Add to Featured"}
             </button>
           </form>
 
@@ -2079,7 +2201,7 @@ export default function AdminDashboard() {
                   background: "rgba(0, 0, 0, 0.18)",
                 }}
               >
-                <table style={{ width: "100%", minWidth: 820, borderCollapse: "separate", borderSpacing: 0 }}>
+                <table style={{ width: "100%", minWidth: typeof window !== "undefined" && window.innerWidth < 768 ? 600 : 820, borderCollapse: "separate", borderSpacing: 0 }}>
                   <thead>
                     <tr style={{ background: "rgba(255, 255, 255, 0.02)" }}>
                       <th style={{ textAlign: "left", padding: "10px 12px", fontSize: 11, color: "rgba(255,255,255,0.55)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
