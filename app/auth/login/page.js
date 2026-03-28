@@ -1,13 +1,21 @@
 "use client";
-import { useState, useRef } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useState, useRef, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useAuth } from "../../../lib/hooks/useAuth";
 import { useWalletConnection } from "../../../lib/hooks/useWallet";
 
 export default function LoginPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const callbackUrl = searchParams?.get("callbackUrl") || "/";
+  const [callbackUrl, setCallbackUrl] = useState("/");
+
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      setCallbackUrl(params.get("callbackUrl") || "/");
+    } catch (e) {
+      setCallbackUrl("/");
+    }
+  }, []);
   const { login } = useAuth();
   const { connectWallet, isConnecting } = useWalletConnection();
 
