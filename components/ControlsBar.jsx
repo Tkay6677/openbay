@@ -2,26 +2,15 @@ export default function ControlsBar() {
   return (
     <div className="container">
       <div className="controls">
-          <div className="nav-filters desktop-only" aria-label="Chains">
-                      <button type="button" className="nav-pill active">
-                        All
-                      </button>
-                      <button type="button" className="nav-pill">
-                        Ethereum
-                      </button>
-                      <button type="button" className="nav-pill">
-                        Base
-                      </button>
-                      <button type="button" className="nav-pill">
-                        MegaETH
-                      </button>
-                      <button type="button" className="nav-pill">
-                        CMS
-                      </button>
-                      <button type="button" className="nav-pill">
-                        More ▾
-                      </button>
-                    </div>
+          <div className="nav-filters desktop-only" aria-label="Major coins">
+            <a className="nav-pill active" href="/market">All</a>
+            <a className="nav-pill" href="https://www.coingecko.com/en/coins/bitcoin" target="_blank" rel="noopener noreferrer">BTC</a>
+            <a className="nav-pill" href="https://www.coingecko.com/en/coins/ethereum" target="_blank" rel="noopener noreferrer">ETH</a>
+            <a className="nav-pill" href="https://www.coingecko.com/en/coins/binancecoin" target="_blank" rel="noopener noreferrer">BNB</a>
+            <a className="nav-pill" href="https://www.coingecko.com/en/coins/tether" target="_blank" rel="noopener noreferrer">USDT</a>
+            <a className="nav-pill" href="https://www.coingecko.com/en/coins/usd-coin" target="_blank" rel="noopener noreferrer">USDC</a>
+            <a className="nav-pill" href="https://www.coingecko.com/en/coins/xrp" target="_blank" rel="noopener noreferrer">XRP</a>
+          </div>
         
         <div className="row">
           {/* <div className="chain-icons">

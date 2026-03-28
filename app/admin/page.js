@@ -1,6 +1,5 @@
 import { getServerSession } from "next-auth/next";
 import { redirect, notFound } from "next/navigation";
-import NavBar from "../../components/NavBar";
 import Footer from "../../components/Footer";
 import AdminDashboard from "../../components/AdminDashboard";
 import { authOptions } from "../api/auth/[...nextauth]/route";
@@ -17,8 +16,7 @@ export default async function AdminPage() {
 
   return (
     <>
-      <NavBar />
-      <main className="container" style={{ paddingTop: 24, paddingBottom: 24 }}>
+      <main className="container" style={{ paddingTop: 24, paddingBottom: 24, "--header-height": "0px" }}>
         <AdminDashboard />
       </main>
       <Footer />

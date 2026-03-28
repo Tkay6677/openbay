@@ -573,6 +573,25 @@ img, video { max-width: 100%; }
 .admin-toolbar-title { font-weight: 900; letter-spacing: -0.02em; font-size: 20px; background: linear-gradient(135deg, var(--primary), var(--accent)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
 .admin-content { padding: 24px; }
 
+/* Prevent sticky headers from covering content when scrolling or jumping to anchors */
+:root { --admin-toolbar-height: 72px; }
+.admin-toolbar { --admin-toolbar-height: 72px; }
+
+/* Reserve space for the sticky toolbar so it doesn't overlap content */
+.admin-main { padding-top: var(--admin-toolbar-height); }
+
+.admin-content, .admin-content > * {
+  scroll-margin-top: calc(var(--header-height) + var(--admin-toolbar-height) + 20px);
+}
+
+/* Ensure table header rows remain visible and don't overlap interactive elements */
+.admin-table thead th {
+  position: sticky;
+  top: calc(var(--header-height) + var(--admin-toolbar-height) + 12px);
+  z-index: 3;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.02));
+}
+
 .admin-alert { margin: 12px 20px 0; padding: 16px; border-radius: 14px; border: 1px solid rgba(255, 255, 255, 0.10); background: rgba(255, 255, 255, 0.04); backdrop-filter: blur(10px); }
 .admin-alert.error { border-color: rgba(239, 68, 68, 0.4); background: linear-gradient(135deg, rgba(239, 68, 68, 0.1), rgba(239, 68, 68, 0.05)); color: #fecaca; }
 .admin-alert.success { border-color: rgba(34, 197, 94, 0.4); background: linear-gradient(135deg, rgba(34, 197, 94, 0.1), rgba(34, 197, 94, 0.05)); color: #86efac; }
