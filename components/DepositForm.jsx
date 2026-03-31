@@ -76,7 +76,7 @@ export default function DepositForm({ onDepositSuccess }) {
       }
       setSubmitStatus({
         type: "success",
-        message: "Deposit submitted for admin approval. Your virtual wallet balance will update after approval.",
+        message: "Deposit submitted for admin approval. Your wallet balance will update after approval.",
       });
       
       // Notify parent component
@@ -163,7 +163,7 @@ export default function DepositForm({ onDepositSuccess }) {
             </div>
             <div style={{ fontFamily: "monospace", fontSize: 12, wordBreak: "break-all", marginTop: 6 }}>{txHash}</div>
             <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 10 }}>
-              Your virtual balance will update after an admin approves your deposit.
+              Your balance will update after an admin approves your deposit.
             </div>
           </div>
         ) : null}

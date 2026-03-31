@@ -200,7 +200,7 @@ export default function WalletPage() {
             </div>
           ) : virtualAssets.length === 0 ? (
             <div className="card" style={{ padding: 24, color: "var(--muted)" }}>
-              No NFTs in your virtual wallet yet.{" "}
+              No NFTs in your wallet yet.{" "}
               <Link href="/mint" style={{ color: "var(--primary)" }}>
                 Mint one now!
               </Link>
@@ -298,7 +298,7 @@ export default function WalletPage() {
               <div>
                 <h1 style={{ margin: 0 }}>My Wallet</h1>
                 <div style={{ color: "var(--muted)", marginTop: 6 }}>
-                  Virtual balance, deposits, withdrawals, and transaction history.
+                  Balance, deposits, withdrawals, and transaction history.
                 </div>
               </div>
 

@@ -25,7 +25,7 @@ export default function WalletBalanceCard({ onSend, onRequest, onSeeMoreTransact
     return (
       <div className="card" style={{ padding: 24 }}>
         <div style={{ textAlign: "center", color: "var(--muted)", marginBottom: 16 }}>
-          Sign in to view your virtual wallet balance
+          Sign in to view your wallet balance
         </div>
         <button
           className="btn primary"

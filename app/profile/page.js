@@ -217,7 +217,7 @@ export default function ProfilePage() {
 
               <div className="card" style={{ padding: 24 }}>
                 <div style={{ marginBottom: 16 }}>
-                  <div style={{ fontSize: 14, color: "var(--muted)", marginBottom: 4 }}>Virtual Wallet Balance</div>
+                  <div style={{ fontSize: 14, color: "var(--muted)", marginBottom: 4 }}>Wallet Balance</div>
                   {virtualBalanceLoading ? (
                     <div style={{ color: "var(--muted)" }}>Loading...</div>
                   ) : virtualBalance ? (
@@ -234,7 +234,7 @@ export default function ProfilePage() {
                     </>
                   ) : (
                     <div style={{ fontSize: 14, color: "var(--muted)" }}>
-                      <Link href="/?login=1&callbackUrl=%2Fprofile" style={{ color: "var(--primary)" }}>Sign in</Link> to view your virtual wallet
+                      <Link href="/?login=1&callbackUrl=%2Fprofile" style={{ color: "var(--primary)" }}>Sign in</Link> to view your wallet
                     </div>
                   )}
                 </div>
@@ -356,16 +356,16 @@ export default function ProfilePage() {
             <h2>My NFTs</h2>
             <div style={{ marginBottom: 12, fontSize: 14, color: "var(--muted)" }}>Wallet NFTs</div>
             {virtualOwnedState.isLoading ? (
-              <div style={{ padding: 40, textAlign: "center", color: "var(--muted)" }}>Loading your virtual NFTs...</div>
+              <div style={{ padding: 40, textAlign: "center", color: "var(--muted)" }}>Loading your NFTs...</div>
             ) : virtualOwnedState.isUnauthorized ? (
               <div style={{ padding: 40, textAlign: "center", color: "var(--muted)" }}>
-                <Link href="/?login=1&callbackUrl=%2Fprofile" style={{ color: "var(--primary)" }}>Sign in</Link> to view your virtual wallet NFTs.
+                <Link href="/?login=1&callbackUrl=%2Fprofile" style={{ color: "var(--primary)" }}>Sign in</Link> to view your wallet NFTs.
               </div>
             ) : virtualOwnedState.error ? (
               <div style={{ padding: 40, textAlign: "center", color: "var(--red)" }}>{virtualOwnedState.error}</div>
             ) : virtualOwned.length === 0 ? (
               <div style={{ padding: 40, textAlign: "center", color: "var(--muted)" }}>
-                No NFTs in your virtual wallet yet. <Link href="/mint" style={{ color: "var(--primary)" }}>Mint one now!</Link>
+                No NFTs in your wallet yet. <Link href="/mint" style={{ color: "var(--primary)" }}>Mint one now!</Link>
               </div>
             ) : (
               <div className="grid" style={{ marginBottom: 20 }}>
