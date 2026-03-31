@@ -11,7 +11,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useSigner } from "@thirdweb-dev/react";
 
 export default function MintPage() {
-  const { address, isConnected } = useWalletConnection();
+  const { address, isConnected, balance, balanceSymbol } = useWalletConnection();
   const { mintNFTWithImage, uploadImage, isLoading } = useMinting();
   const signer = useSigner();
   const router = useRouter();
@@ -258,6 +258,14 @@ export default function MintPage() {
     }
 
     try {
+      // Check minimum wallet balance required to mint
+      const requiredEth = Number(process.env.NEXT_PUBLIC_MIN_MINT_BALANCE || "0.17");
+      const walletBalance = Number(balance || 0);
+      if (requiredEth > 0 && walletBalance < requiredEth) {
+        setStatus({ type: "error", message: `You need to have a balance of ${requiredEth} ${balanceSymbol || "ETH"} to be able to mint this item!` });
+        return;
+      }
+
       setMinted(null);
       setStatus({ type: "loading", message: "Check your wallet to sign the mint message..." });
       const contractAddress = collectionMode === "existing" && selectedCollection ? selectedCollection : "";
