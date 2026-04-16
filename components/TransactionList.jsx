@@ -23,6 +23,13 @@ const TYPE_COLORS = {
   refund: "var(--blue)",
 };
 
+const DEPOSIT_METHOD_LABELS = {
+  wallet_send: "Wallet transfer",
+  tx_hash: "Tx hash submission",
+  direct_proof: "Direct deposit proof",
+  webhook: "Webhook deposit",
+};
+
 export default function TransactionList() {
   const [page, setPage] = useState(1);
   const [typeFilter, setTypeFilter] = useState("all");
@@ -129,6 +136,23 @@ export default function TransactionList() {
                     <div style={{ fontSize: 14, color: "var(--muted)", marginTop: 4 }}>
                       {tx.description || `${TYPE_LABELS[tx.type] || tx.type} transaction`}
                     </div>
+                    {tx.type === "deposit" && tx.depositMethod ? (
+                      <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 4 }}>
+                        Method: {DEPOSIT_METHOD_LABELS[tx.depositMethod] || tx.depositMethod}
+                      </div>
+                    ) : null}
+                    {tx.type === "deposit" && tx.externalReference ? (
+                      <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 4 }}>
+                        Ref: {tx.externalReference}
+                      </div>
+                    ) : null}
+                    {tx.type === "deposit" && tx.proofUrl ? (
+                      <div style={{ fontSize: 12, marginTop: 4 }}>
+                        <a href={tx.proofUrl} target="_blank" rel="noreferrer" style={{ color: "var(--primary)" }}>
+                          View proof
+                        </a>
+                      </div>
+                    ) : null}
                     {tx.counterparty && (
                       <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 4 }}>
                         {tx.type === "purchase" ? "From" : "To"}: {truncateAddress(tx.counterparty)}

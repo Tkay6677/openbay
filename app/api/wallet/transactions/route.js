@@ -31,6 +31,9 @@ export async function GET(req) {
       itemId: tx.itemId?.toString(),
       txHash: tx.txHash,
       status: tx.status,
+      depositMethod: tx.depositMethod || null,
+      proofUrl: tx.proofUrl || null,
+      externalReference: tx.externalReference || null,
       description: tx.description,
       createdAt: tx.createdAt,
     }));

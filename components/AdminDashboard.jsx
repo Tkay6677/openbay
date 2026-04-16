@@ -22,6 +22,13 @@ function isEthAddress(value) {
   return /^0x[a-fA-F0-9]{40}$/.test(String(value || "").trim());
 }
 
+const DEPOSIT_METHOD_LABELS = {
+  wallet_send: "Wallet transfer",
+  tx_hash: "Tx hash submission",
+  direct_proof: "Direct deposit proof",
+  webhook: "Webhook deposit",
+};
+
 function SkeletonTable({ columns = 6, rows = 6, minWidth = 980 } = {}) {
   const cols = Array.from({ length: columns });
   const r = Array.from({ length: rows });
@@ -1248,6 +1255,21 @@ export default function AdminDashboard() {
                       <td style={{ padding: "10px 12px", borderTop: "1px solid rgba(255,255,255,0.06)" }}>
                         <div style={{ fontWeight: 800, fontSize: 13 }}>{tx.type}</div>
                         {tx.description ? <div style={{ fontSize: 12, color: "rgba(255,255,255,0.55)" }}>{tx.description}</div> : null}
+                        {tx.type === "deposit" ? (
+                          <div style={{ fontSize: 12, color: "rgba(255,255,255,0.65)" }}>
+                            Method: {DEPOSIT_METHOD_LABELS[tx.depositMethod] || (tx.txHash ? "Wallet transfer" : "Direct deposit proof")}
+                          </div>
+                        ) : null}
+                        {tx.externalReference ? (
+                          <div style={{ fontSize: 12, color: "rgba(255,255,255,0.65)" }}>Ref: {tx.externalReference}</div>
+                        ) : null}
+                        {tx.proofUrl ? (
+                          <div style={{ fontSize: 12 }}>
+                            <a href={tx.proofUrl} target="_blank" rel="noreferrer" style={{ color: "var(--primary)" }}>
+                              View proof
+                            </a>
+                          </div>
+                        ) : null}
                       </td>
                       <td style={{ padding: "10px 12px", borderTop: "1px solid rgba(255,255,255,0.06)" }}>
                         <div style={{ fontFamily: "monospace", fontSize: 12 }}>{tx.userId ? truncateAddress(tx.userId) : "—"}</div>
@@ -1272,7 +1294,11 @@ export default function AdminDashboard() {
                               onClick={() => approveDeposit(tx.id)}
                               disabled={approveDepositStatus.isLoading && approveDepositStatus.txId === tx.id}
                             >
-                              {approveDepositStatus.isLoading && approveDepositStatus.txId === tx.id ? "Approving..." : "Approve"}
+                              {approveDepositStatus.isLoading && approveDepositStatus.txId === tx.id
+                                ? "Approving..."
+                                : tx.txHash
+                                ? "Approve"
+                                : "Approve (manual)"}
                             </button>
                             {approveDepositStatus.error && approveDepositStatus.txId === tx.id ? (
                               <div style={{ color: "var(--red)", fontSize: 12 }}>{approveDepositStatus.error}</div>

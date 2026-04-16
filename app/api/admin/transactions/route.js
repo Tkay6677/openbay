@@ -113,6 +113,9 @@ export async function GET(req) {
         itemId: tx.itemId?.toString?.() || null,
         txHash: tx.txHash || null,
         status: tx.status || null,
+        depositMethod: tx.depositMethod || null,
+        proofUrl: tx.proofUrl || null,
+        externalReference: tx.externalReference || null,
         description: tx.description || null,
         createdAt: tx.createdAt || null,
       })),
@@ -174,7 +177,13 @@ export async function PATCH(req) {
       return NextResponse.json({ error: "Deposit is no longer pending" }, { status: 409 });
     }
 
-    if (!txDoc.txHash) {
+    const depositMethod = String(txDoc.depositMethod || "").toLowerCase();
+    const requiresOnChainVerification = Boolean(txDoc.txHash);
+    const isLegacyDirectSubmission =
+      !requiresOnChainVerification &&
+      (Boolean(txDoc.proofUrl) || String(txDoc.description || "").toLowerCase().includes("direct deposit"));
+
+    if (!requiresOnChainVerification && depositMethod !== "direct_proof" && !isLegacyDirectSubmission) {
       await db.collection("walletTransactions").updateOne(
         { _id },
         { $set: { status: "failed", failedAt: new Date(), errorMessage: "Missing txHash", updatedAt: new Date() } }
@@ -182,29 +191,40 @@ export async function PATCH(req) {
       return NextResponse.json({ error: "Deposit is missing txHash" }, { status: 400 });
     }
 
-    const normalizedTxHash = txDoc.txHash.toLowerCase();
-    const duplicateCompleted = await db.collection("walletTransactions").findOne({
-      _id: { $ne: _id },
-      type: "deposit",
-      status: "completed",
-      txHash: { $in: [txDoc.txHash, normalizedTxHash] },
-    });
-    if (duplicateCompleted) {
-      await db.collection("walletTransactions").updateOne(
-        { _id },
-        { $set: { status: "failed", failedAt: new Date(), errorMessage: "Duplicate txHash", updatedAt: new Date() } }
-      );
-      return NextResponse.json({ error: "Deposit txHash already approved" }, { status: 409 });
+    let normalizedTxHash = null;
+    let verification = null;
+    if (requiresOnChainVerification) {
+      normalizedTxHash = txDoc.txHash.toLowerCase();
+      const duplicateCompleted = await db.collection("walletTransactions").findOne({
+        _id: { $ne: _id },
+        type: "deposit",
+        status: "completed",
+        txHash: { $in: [txDoc.txHash, normalizedTxHash] },
+      });
+      if (duplicateCompleted) {
+        await db.collection("walletTransactions").updateOne(
+          { _id },
+          { $set: { status: "failed", failedAt: new Date(), errorMessage: "Duplicate txHash", updatedAt: new Date() } }
+        );
+        return NextResponse.json({ error: "Deposit txHash already approved" }, { status: 409 });
+      }
+
+      const platformWallet = await getOrCreatePlatformWallet();
+      verification = await verifyDepositOnChain({
+        txHash: normalizedTxHash,
+        platformWalletAddress: platformWallet.address,
+      });
     }
 
-    const platformWallet = await getOrCreatePlatformWallet();
-    const verification = await verifyDepositOnChain({
-      txHash: normalizedTxHash,
-      platformWalletAddress: platformWallet.address,
-    });
-
     const userWallet = txDoc.userId?.toLowerCase?.() || null;
-    if (!userWallet || verification.from !== userWallet) {
+    if (!userWallet) {
+      await db.collection("walletTransactions").updateOne(
+        { _id },
+        { $set: { status: "failed", failedAt: new Date(), errorMessage: "Invalid user wallet", updatedAt: new Date() } }
+      );
+      return NextResponse.json({ error: "Invalid user wallet on transaction" }, { status: 400 });
+    }
+    if (requiresOnChainVerification && verification?.from !== userWallet) {
       await db.collection("walletTransactions").updateOne(
         { _id },
         { $set: { status: "failed", failedAt: new Date(), errorMessage: "Sender mismatch", updatedAt: new Date() } }
@@ -221,7 +241,14 @@ export async function PATCH(req) {
       return NextResponse.json({ error: "User not found for this deposit" }, { status: 404 });
     }
 
-    const amount = txDoc.amount ?? verification.amount;
+    const amount = requiresOnChainVerification ? verification.amount : txDoc.amount;
+    if (!Number.isFinite(amount) || amount <= 0) {
+      await db.collection("walletTransactions").updateOne(
+        { _id },
+        { $set: { status: "failed", failedAt: new Date(), errorMessage: "Invalid amount", updatedAt: new Date() } }
+      );
+      return NextResponse.json({ error: "Invalid deposit amount" }, { status: 400 });
+    }
     const balanceBefore = user.virtualBalance || 0;
     const balanceAfter = balanceBefore + amount;
 
@@ -238,6 +265,9 @@ export async function PATCH(req) {
       userBalances: amount,
     });
 
+    const resolvedDepositMethod =
+      txDoc.depositMethod || (requiresOnChainVerification ? "wallet_send" : "direct_proof");
+
     await db.collection("walletTransactions").updateOne(
       { _id },
       {
@@ -245,19 +275,26 @@ export async function PATCH(req) {
           status: "completed",
           balanceBefore,
           balanceAfter,
-          blockNumber: txDoc.blockNumber ?? verification.blockNumber,
-          confirmations: txDoc.confirmations ?? verification.confirmations,
-          gasUsed: txDoc.gasUsed ?? verification.gasUsed,
-          txHash: normalizedTxHash,
+          blockNumber: requiresOnChainVerification ? txDoc.blockNumber ?? verification.blockNumber : txDoc.blockNumber ?? null,
+          confirmations: requiresOnChainVerification ? txDoc.confirmations ?? verification.confirmations : txDoc.confirmations ?? null,
+          gasUsed: requiresOnChainVerification ? txDoc.gasUsed ?? verification.gasUsed : txDoc.gasUsed ?? null,
+          txHash: normalizedTxHash || null,
+          depositMethod: resolvedDepositMethod,
           completedAt: new Date(),
           updatedAt: new Date(),
-          description: `Deposited ${amount} ETH`,
+          description: requiresOnChainVerification ? `Deposited ${amount} ETH` : `Direct deposit approved: ${amount} ETH`,
         },
         $unset: { errorMessage: "" },
       }
     );
 
-    return NextResponse.json({ success: true, status: "completed", balanceAfter });
+    return NextResponse.json({
+      success: true,
+      status: "completed",
+      balanceAfter,
+      depositMethod: resolvedDepositMethod,
+      verificationMode: requiresOnChainVerification ? "onchain" : "manual",
+    });
   } catch (error) {
     return NextResponse.json(
       { error: error.message || "Failed to approve deposit" },

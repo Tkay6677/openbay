@@ -114,6 +114,7 @@ export async function POST(req) {
       blockNumber: verification.blockNumber,
       confirmations: verification.confirmations,
       gasUsed: verification.gasUsed,
+      depositMethod: "webhook",
       description: `Deposit pending admin approval: ${verification.amount} ETH`,
       createdAt: new Date(),
     });

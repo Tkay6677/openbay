@@ -12,6 +12,10 @@ function getRpcUrl() {
   return rpcUrl;
 }
 
+function isTxHash(value) {
+  return /^0x[a-fA-F0-9]{64}$/.test(String(value || "").trim());
+}
+
 async function verifyDeposit({ txHash, platformWalletAddress }) {
   const rpcUrl = getRpcUrl();
   if (!rpcUrl) throw new Error("RPC_URL is required for deposit verification");
@@ -56,8 +60,13 @@ export async function POST(req) {
     const body = await req.json().catch(() => ({}));
     const txHashRaw = typeof body?.txHash === "string" ? body.txHash.trim() : "";
     const txHash = txHashRaw ? txHashRaw.toLowerCase() : "";
+    const methodRaw = typeof body?.method === "string" ? body.method.trim().toLowerCase() : "";
+    const method = methodRaw === "tx_hash" || methodRaw === "manual_hash" ? "tx_hash" : "wallet_send";
     if (!txHash) {
       return NextResponse.json({ error: "txHash is required" }, { status: 400 });
+    }
+    if (!isTxHash(txHash)) {
+      return NextResponse.json({ error: "Invalid txHash format" }, { status: 400 });
     }
 
     const db = await getDb();
@@ -74,6 +83,7 @@ export async function POST(req) {
         status: existingTx.status || null,
         amount: existingTx.amount,
         txHash: existingTx.txHash || txHash,
+        depositMethod: existingTx.depositMethod || null,
       });
     }
 
@@ -135,7 +145,11 @@ export async function POST(req) {
       blockNumber: verification.blockNumber,
       confirmations: verification.confirmations,
       gasUsed: verification.gasUsed,
-      description: `Deposit pending admin approval: ${verification.amount} ETH`,
+      depositMethod: method,
+      description:
+        method === "tx_hash"
+          ? `Deposit submitted with tx hash (pending admin approval): ${verification.amount} ETH`
+          : `Deposit pending admin approval: ${verification.amount} ETH`,
       createdAt: new Date(),
     });
 
@@ -145,6 +159,7 @@ export async function POST(req) {
       status: tx.status,
       amount: tx.amount,
       txHash: tx.txHash,
+      depositMethod: tx.depositMethod || method,
     });
   } catch (error) {
     return NextResponse.json(

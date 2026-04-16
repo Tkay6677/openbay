@@ -37,6 +37,8 @@ export async function POST(req) {
     const form = await req.formData();
     const amountRaw = form.get("amount");
     const toAddress = String(form.get("toAddress") || "").trim();
+    const reference = String(form.get("reference") || "").trim();
+    const depositMethod = "direct_proof";
     const file = form.get("proof");
 
     const amount = parseFloat(String(amountRaw || "").trim());
@@ -91,12 +93,21 @@ export async function POST(req) {
       balanceAfter: balanceBefore,
       txHash: null,
       status: "pending",
-      description: `Direct deposit submitted by user${toAddress ? ` (to ${toAddress})` : ""}`,
+      depositMethod,
+      externalReference: reference || null,
+      description: `Direct deposit submitted by user${toAddress ? ` (to ${toAddress})` : ""}${reference ? ` - Ref: ${reference}` : ""}`,
       proofUrl: proofUrl || null,
       createdAt: new Date(),
     });
 
-    return NextResponse.json({ success: true, transactionId: tx._id.toString(), status: tx.status, amount: tx.amount });
+    return NextResponse.json({
+      success: true,
+      transactionId: tx._id.toString(),
+      status: tx.status,
+      amount: tx.amount,
+      depositMethod: tx.depositMethod || depositMethod,
+      proofUrl: tx.proofUrl || null,
+    });
   } catch (e) {
     return NextResponse.json({ error: e?.message || "Failed to submit direct deposit" }, { status: 500 });
   }

@@ -161,9 +161,9 @@ export default function WalletPage() {
       return (
         <div style={{ display: "grid", gap: 14, maxWidth: 740 }}>
           <div className="card" style={{ padding: 14 }}>
-            <div style={{ fontWeight: 700, marginBottom: 4 }}>Deposits require admin approval</div>
+            <div style={{ fontWeight: 700, marginBottom: 4 }}>Multiple deposit options available</div>
             <div style={{ color: "var(--muted)", fontSize: 13 }}>
-              After your on-chain transfer confirms, it will appear as pending until an admin approves it.
+              Choose wallet transfer, tx-hash submission, or direct proof upload. All deposits appear as pending until an admin approves them.
             </div>
           </div>
           <DepositForm onDepositSuccess={handleDepositSuccess} />
