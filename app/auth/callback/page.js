@@ -5,6 +5,13 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 
+const errorMessages = {
+  OAuthSignin: "Google sign-in failed. Please try again.",
+  OAuthCallback: "Sign-in callback failed. Please try again.",
+  CredentialsSignin: "Email or password is incorrect.",
+  SessionRequired: "Please sign in to continue.",
+};
+
 export default function AuthCallbackPage() {
   return (
     <Suspense fallback={null}>
@@ -20,24 +27,23 @@ function AuthCallbackPageInner() {
   const [error, setError] = useState(null);
 
   const callbackUrl = searchParams?.get("callbackUrl") || "/";
+  const errorParam = searchParams?.get("error");
 
   useEffect(() => {
     if (status === "authenticated" && session) {
-      // User is authenticated, redirect to callback URL or home
       router.replace(callbackUrl);
-    } else if (status === "unauthenticated") {
-      // Check for error in URL
-      const errorParam = searchParams?.get("error");
+      return;
+    }
+
+    if (status === "unauthenticated") {
       if (errorParam) {
-        setError(errorParam);
+        const friendly = errorMessages[errorParam] || errorParam;
+        setError(friendly);
       } else {
-        // No error but not authenticated, redirect to login
-        setTimeout(() => {
-          router.replace(`/?login=1&callbackUrl=${encodeURIComponent(callbackUrl)}`);
-        }, 2000);
+        router.replace(`/auth/login?callbackUrl=${encodeURIComponent(callbackUrl)}`);
       }
     }
-  }, [status, session, router, callbackUrl, searchParams]);
+  }, [status, session, router, callbackUrl, errorParam]);
 
   return (
     <main
@@ -62,25 +68,34 @@ function AuthCallbackPageInner() {
         </div>
         <div style={{ color: "var(--muted)", marginBottom: 14 }}>
           {status === "loading"
-            ? "You'll be redirected to the marketplace."
+            ? "You'll be redirected shortly."
             : status === "authenticated"
-              ? "Redirecting..."
+              ? "Redirecting to your dashboard..."
               : error
-                ? error
-                : "Redirecting to sign-in..."}
+                ? "There was a problem completing sign-in."
+                : "Preparing login flow..."}
         </div>
 
         {error ? (
           <div
             className="card"
             style={{
-              padding: 12,
+              padding: 16,
               borderColor: "var(--red)",
-              background: "rgba(239, 68, 68, 0.06)",
+              background: "rgba(239, 68, 68, 0.08)",
               color: "var(--red)",
             }}
           >
-            {error}
+            <div style={{ fontWeight: 700, marginBottom: 8 }}>Sign-in error</div>
+            <div>{error}</div>
+            <button
+              className="btn"
+              type="button"
+              onClick={() => router.push(`/auth/login?callbackUrl=${encodeURIComponent(callbackUrl)}`)}
+              style={{ marginTop: 14 }}
+            >
+              Return to login
+            </button>
           </div>
         ) : (
           <motion.div

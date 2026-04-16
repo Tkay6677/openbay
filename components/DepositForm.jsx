@@ -93,6 +93,37 @@ export default function DepositForm({ onDepositSuccess }) {
     if (proofInputRef.current) proofInputRef.current.value = "";
   };
 
+  const normalizeDepositError = (err) => {
+    if (!err) return "Unable to complete the deposit. Please try again.";
+    const message =
+      err?.data?.message ||
+      err?.error?.message ||
+      err?.reason ||
+      err?.message ||
+      "Unable to complete the deposit. Please try again.";
+
+    if (typeof message === "string") {
+      const text = message.toLowerCase();
+      if (text.includes("insufficient funds")) {
+        return "Insufficient funds. Please add more ETH to cover the deposit and gas fees.";
+      }
+      if (text.includes("user rejected") || text.includes("transaction rejected") || text.includes("signature")) {
+        return "Transaction rejected. Please confirm the transaction in your wallet.";
+      }
+      if (text.includes("invalid address") || text.includes("invalid recipient")) {
+        return "Unable to complete the deposit because the destination address is invalid.";
+      }
+      if (text.includes("network")) {
+        return "Network error. Please check your connection and try again.";
+      }
+      if (text.includes("timeout")) {
+        return "The request timed out. Please try again.";
+      }
+    }
+
+    return "Unable to complete the deposit. Please try again.";
+  };
+
   const handleMethodChange = (nextMethod) => {
     setMethod(nextMethod);
     setError(null);
@@ -207,7 +238,7 @@ export default function DepositForm({ onDepositSuccess }) {
       resetMethodFields();
       if (onDepositSuccess) onDepositSuccess(data.transactionId || null);
     } catch (err) {
-      setError(err.message || "Failed to submit deposit");
+      setError(normalizeDepositError(err));
     } finally {
       setIsSending(false);
     }
@@ -255,26 +286,31 @@ export default function DepositForm({ onDepositSuccess }) {
       ) : null}
 
       <div style={{ marginBottom: 16 }}>
-        <label style={{ display: "block", fontSize: 14, color: "var(--muted)", marginBottom: 8 }}>
+        <label style={{ display: "block", fontSize: 14, color: "var(--muted)", marginBottom: 10 }}>
           Deposit method
         </label>
-        <div style={{ display: "grid", gap: 8 }}>
+        <div className="deposit-methods">
           {methods.map((m) => (
             <button
               key={m.id}
               type="button"
-              className={method === m.id ? "btn primary" : "btn"}
+              className={`deposit-method-card${method === m.id ? " active" : ""}`}
               onClick={() => handleMethodChange(m.id)}
-              style={{ textAlign: "left", whiteSpace: "normal" }}
             >
               <div style={{ fontWeight: 700 }}>{m.label || m.id}</div>
               {m.description ? (
-                <div style={{ fontSize: 12, opacity: 0.9, marginTop: 2 }}>{m.description}</div>
+                <div style={{ fontSize: 13, opacity: 0.9, marginTop: 6 }}>{m.description}</div>
               ) : null}
             </button>
           ))}
         </div>
       </div>
+
+      {requiresSigner && !signer ? (
+        <div className="alert-card alert-info" style={{ marginBottom: 16 }}>
+          Connect a wallet to use the wallet transfer option.
+        </div>
+      ) : null}
 
       <form onSubmit={handleDeposit}>
         <div style={{ marginBottom: 16 }}>
@@ -282,8 +318,7 @@ export default function DepositForm({ onDepositSuccess }) {
             Amount (ETH)
           </label>
           <input
-            className="btn"
-            style={{ width: "100%", cursor: "text" }}
+            className="deposit-field"
             type="number"
             step="0.0001"
             min={String(minDeposit)}
@@ -302,8 +337,8 @@ export default function DepositForm({ onDepositSuccess }) {
               Transaction hash
             </label>
             <input
-              className="btn"
-              style={{ width: "100%", cursor: "text", fontFamily: "monospace" }}
+              className="deposit-field"
+              style={{ width: "100%", fontFamily: "monospace" }}
               type="text"
               value={manualTxHash}
               onChange={(e) => setManualTxHash(e.target.value)}
@@ -333,8 +368,8 @@ export default function DepositForm({ onDepositSuccess }) {
                 Reference note (optional)
               </label>
               <input
-                className="btn"
-                style={{ width: "100%", cursor: "text" }}
+                className="deposit-field"
+                style={{ width: "100%" }}
                 type="text"
                 value={reference}
                 onChange={(e) => setReference(e.target.value)}
@@ -348,7 +383,12 @@ export default function DepositForm({ onDepositSuccess }) {
           </div>
         ) : null}
 
-        {error ? <div style={{ color: "var(--red)", marginBottom: 12, fontSize: 14 }}>{error}</div> : null}
+        {error ? (
+          <div className="alert-card alert-error" role="alert" aria-live="assertive">
+            <div style={{ fontWeight: 700, marginBottom: 6 }}>Deposit error</div>
+            <div>{error}</div>
+          </div>
+        ) : null}
 
         {txHash ? (
           <div style={{ marginBottom: 12, padding: 12, background: "rgba(45, 212, 191, 0.1)", borderRadius: 8 }}>
@@ -366,7 +406,7 @@ export default function DepositForm({ onDepositSuccess }) {
         ) : null}
 
         {submitStatus?.type === "success" ? (
-          <div style={{ marginBottom: 12, padding: 12, background: "rgba(34, 197, 94, 0.12)", borderRadius: 8, fontSize: 13 }}>
+          <div className="alert-card alert-success" role="status">
             {submitStatus.message}
           </div>
         ) : null}

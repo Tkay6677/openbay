@@ -4,9 +4,21 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "../../../lib/hooks/useAuth";
 import { useWalletConnection } from "../../../lib/hooks/useWallet";
 
+const errorMessages = {
+  CredentialsSignin: {
+    signin: "Invalid email or password.",
+    signup: "Could not create account. Try a different email or password.",
+  },
+  OAuthSignin: "Google sign-in failed. Please try again.",
+  OAuthCallback: "Sign-in callback failed. Please try again.",
+  SessionRequired: "Please sign in to continue.",
+};
+
 export default function LoginPage() {
   const router = useRouter();
   const [callbackUrl, setCallbackUrl] = useState("/");
+  const [providers, setProviders] = useState(null);
+  const [providerError, setProviderError] = useState(null);
 
   useEffect(() => {
     try {
@@ -16,18 +28,50 @@ export default function LoginPage() {
       setCallbackUrl("/");
     }
   }, []);
+
   const { login } = useAuth();
   const { connectWallet, isConnecting } = useWalletConnection();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [showPasswordField, setShowPasswordField] = useState(false);
   const [name, setName] = useState("");
   const [isSignUp, setIsSignUp] = useState(false);
   const [isAuthActionLoading, setIsAuthActionLoading] = useState(false);
   const [authError, setAuthError] = useState(null);
   const [authInfo, setAuthInfo] = useState(null);
   const passwordInputRef = useRef(null);
+
+  const googleEnabled = Boolean(providers?.google);
+
+  useEffect(() => {
+    const loadProviders = async () => {
+      try {
+        const res = await fetch("/api/auth/providers");
+        if (!res.ok) throw new Error("Failed to load auth providers");
+        const data = await res.json();
+        setProviders(data || {});
+      } catch (err) {
+        setProviders({});
+        setProviderError("Google login is not available right now.");
+      }
+    };
+
+    loadProviders();
+  }, []);
+
+  const getErrorMessage = (error) => {
+    if (!error) return "Unable to sign in. Please try again.";
+    if (error === "CredentialsSignin") {
+      return isSignUp ? errorMessages.CredentialsSignin.signup : errorMessages.CredentialsSignin.signin;
+    }
+    if (typeof error === "string" && Object.prototype.hasOwnProperty.call(errorMessages, error)) {
+      return errorMessages[error];
+    }
+    if (typeof error === "string" && error.includes("linked to a non-password login")) {
+      return error;
+    }
+    return error;
+  };
 
   const submitEmailPassword = async () => {
     setAuthError(null);
@@ -36,6 +80,18 @@ export default function LoginPage() {
 
     try {
       const trimmedEmail = String(email || "").trim();
+      const trimmedPassword = String(password || "").trim();
+      const trimmedName = String(name || "").trim();
+
+      if (!trimmedEmail) {
+        setAuthError("Please enter your email.");
+        return;
+      }
+
+      if (!trimmedPassword) {
+        setAuthError("Please enter your password.");
+        return;
+      }
 
       if (isSignUp) {
         const checkRes = await fetch("/api/auth/email-exists", {
@@ -48,28 +104,20 @@ export default function LoginPage() {
           if (checkData.provider && checkData.provider !== "email") {
             setAuthError(`An account already exists for this email via ${checkData.provider}. Use that sign-in method.`);
           } else {
-            setAuthError("An account already exists for this email. Switch to Sign in.");
+            setAuthError("An account already exists for this email. Switch to sign in.");
           }
-          setIsAuthActionLoading(false);
           return;
         }
       }
 
       const result = await login("credentials", {
         email: trimmedEmail,
-        password,
-        name: isSignUp ? name : undefined,
+        password: trimmedPassword,
+        name: isSignUp ? trimmedName : undefined,
       });
 
       if (result?.error) {
-        if (result.error === "CredentialsSignin") {
-          setAuthError(isSignUp ? "Could not create account. Try a different email." : "Invalid email or password.");
-        } else if (typeof result.error === "string" && result.error.includes("linked to a non-password login")) {
-          setAuthError(result.error);
-        } else {
-          setAuthError(result.error);
-        }
-        setIsAuthActionLoading(false);
+        setAuthError(getErrorMessage(result.error));
         return;
       }
 
@@ -77,7 +125,7 @@ export default function LoginPage() {
         router.replace(callbackUrl);
       }
     } catch (err) {
-      setAuthError(err?.message || "Failed to sign in");
+      setAuthError(err?.message || "Failed to sign in.");
     } finally {
       setIsAuthActionLoading(false);
     }
@@ -86,52 +134,88 @@ export default function LoginPage() {
   const onGoogle = async () => {
     setAuthError(null);
     setAuthInfo(null);
+    if (!googleEnabled) {
+      setAuthError("Google sign-in is not configured. Please check your app settings.");
+      return;
+    }
     setIsAuthActionLoading(true);
     try {
       await login("google", { callbackUrl });
     } catch (err) {
-      setAuthError(err?.message || "Unable to sign in with Google");
+      setAuthError(err?.message || "Unable to sign in with Google.");
     } finally {
       setIsAuthActionLoading(false);
     }
   };
 
   const onConnect = async () => {
+    setAuthError(null);
+    setAuthInfo(null);
+    setIsAuthActionLoading(true);
     try {
       await connectWallet("metamask");
       router.replace(callbackUrl);
     } catch (e) {
-      setAuthError(e?.message || "Failed to connect wallet");
+      setAuthError(e?.message || "Failed to connect wallet.");
+    } finally {
+      setIsAuthActionLoading(false);
     }
   };
 
   return (
-    <div className="login-page container" style={{ padding: "24px 16px" }}>
-      <div className="login-modal" style={{ maxWidth: 520, margin: "32px auto" }}>
-        <div className="login-modal-title">Log in or sign up</div>
+    <div className="login-page container">
+      <div className="login-modal">
+        <div className="login-modal-title">Welcome back</div>
 
         <div className="login-modal-logo" aria-hidden>
           <span className="login-modal-logo-text">C</span>
         </div>
 
+        <div className="login-auth-card" style={{ padding: 18, gap: 10 }}>
+          <div className="login-auth-card-title">Fast entry to Cosmos</div>
+          <p style={{ margin: 0, color: "rgba(255,255,255,0.65)", fontSize: 13 }}>
+            {googleEnabled
+              ? "Use Google, email/password, or your wallet to access your assets and marketplace tools."
+              : "Use email/password or your wallet to access your assets and marketplace tools."}
+          </p>
+        </div>
+
         {authError ? (
-          <div className="login-auth-card" style={{ borderColor: "rgba(239,68,68,0.55)", background: "rgba(239,68,68,0.06)", color: "rgba(239,68,68,0.95)", marginBottom: 14 }}>
+          <div className="login-auth-card login-auth-alert" role="alert" aria-live="assertive">
             {authError}
           </div>
         ) : null}
 
+        {!authError && providerError ? (
+          <div className="login-auth-card login-auth-note" role="status" aria-live="polite">
+            {providerError}
+          </div>
+        ) : null}
+
         {authInfo ? (
-          <div className="login-auth-card" style={{ borderColor: "rgba(45,212,191,0.45)", background: "rgba(45,212,191,0.08)", color: "rgba(45,212,191,0.95)", marginBottom: 14 }}>
+          <div className="login-auth-card login-auth-note">
             {authInfo}
           </div>
         ) : null}
 
-        <div className="login-auth-card">
-          <div className="login-auth-card-title">Continue with Google</div>
-          <button className="btn primary" type="button" onClick={onGoogle} disabled={isAuthActionLoading} style={{ width: "100%" }}>
-            Continue with Google
-          </button>
-        </div>
+        {googleEnabled ? (
+          <div className="login-auth-card login-options">
+            <button
+              className="login-option"
+              type="button"
+              onClick={onGoogle}
+              disabled={isAuthActionLoading}
+            >
+              <div className="login-option-icon">G</div>
+              <div>
+                <div style={{ fontWeight: 700 }}>Continue with Google</div>
+                <div style={{ fontSize: 12, color: "rgba(255,255,255,0.65)" }}>
+                  Quick login with your Google account.
+                </div>
+              </div>
+            </button>
+          </div>
+        ) : null}
 
         <div className="login-auth-or">
           <div className="login-auth-or-line" />
@@ -140,24 +224,19 @@ export default function LoginPage() {
         </div>
 
         <div className="login-auth-card">
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
-            <div className="login-auth-card-title" style={{ marginBottom: 0 }}>
-              Email & Password
-            </div>
+          <div className="login-auth-top">
+            <div className="login-auth-card-title">{isSignUp ? "Create account" : "Sign in"}</div>
             <button
-              className="btn"
+              className="login-auth-back"
+              type="button"
               onClick={() => {
-                setIsSignUp(!isSignUp);
+                setIsSignUp((current) => !current);
                 setAuthError(null);
                 setAuthInfo(null);
-                setShowPasswordField(true);
-                setTimeout(() => passwordInputRef.current?.focus?.(), 0);
               }}
-              type="button"
               disabled={isAuthActionLoading}
-              style={{ padding: "4px 8px", fontSize: 12 }}
             >
-              {isSignUp ? "Sign in" : "Sign up"}
+              {isSignUp ? "Use existing account" : "New here?"}
             </button>
           </div>
 
@@ -165,22 +244,10 @@ export default function LoginPage() {
             className="login-auth-form"
             onSubmit={async (e) => {
               e.preventDefault();
-              const trimmedEmail = String(email || "").trim();
-              if (!trimmedEmail) return;
-
-              if (!showPasswordField) {
-                setAuthError(null);
-                setAuthInfo(null);
-                setShowPasswordField(true);
-                setTimeout(() => passwordInputRef.current?.focus?.(), 0);
-                return;
-              }
-
-              if (!String(password || "").trim()) return;
               await submitEmailPassword();
             }}
           >
-            {isSignUp && showPasswordField ? (
+            {isSignUp ? (
               <input
                 className="login-auth-input"
                 type="text"
@@ -197,57 +264,55 @@ export default function LoginPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="Email"
-              required
               autoComplete="email"
             />
 
-            {showPasswordField ? (
-              <input
-                ref={passwordInputRef}
-                className="login-auth-input"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Password"
-                required
-                autoComplete={isSignUp ? "new-password" : "current-password"}
-              />
-            ) : null}
+            <input
+              ref={passwordInputRef}
+              className="login-auth-input"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Password"
+              autoComplete={isSignUp ? "new-password" : "current-password"}
+            />
 
-            <button className="btn primary" type="submit" disabled={isAuthActionLoading} style={{ width: "100%" }}>
-              {isAuthActionLoading ? "Processing..." : showPasswordField ? (isSignUp ? "Sign Up" : "Sign In") : "Submit"}
+            <button className="btn primary" type="submit" disabled={isAuthActionLoading}>
+              {isAuthActionLoading ? "Processing..." : isSignUp ? "Create account" : "Sign in"}
             </button>
           </form>
 
-          {showPasswordField ? (
-            <div className="login-auth-small-actions">
-              <button className="btn" type="button" onClick={() => setAuthInfo("Password reset is not set up yet.")} disabled={isAuthActionLoading}>
-                Forgot password?
-              </button>
-              <button
-                className="btn"
-                type="button"
-                onClick={() => {
-                  setIsSignUp(true);
-                  setAuthError(null);
-                  setAuthInfo(null);
-                }}
-                disabled={isAuthActionLoading}
-              >
-                Sign Up
-              </button>
-            </div>
-          ) : null}
+          <div className="login-auth-small-actions">
+            <button className="btn" type="button" onClick={() => setAuthInfo("Password reset is not set up yet.")} disabled={isAuthActionLoading}>
+              Forgot password?
+            </button>
+            <button
+              className="btn"
+              type="button"
+              onClick={() => {
+                setIsSignUp((current) => !current);
+                setAuthError(null);
+                setAuthInfo(null);
+              }}
+              disabled={isAuthActionLoading}
+            >
+              {isSignUp ? "Sign in instead" : "Create account"}
+            </button>
+          </div>
         </div>
 
-        <div style={{ marginTop: 12 }}>
-          <button className="btn" onClick={onConnect} disabled={isConnecting}>
-            {isConnecting ? "Connecting..." : "Connect Wallet (MetaMask)"}
+        <div className="login-auth-card login-options">
+          <button className="login-option" type="button" onClick={onConnect} disabled={isAuthActionLoading || isConnecting}>
+            <div className="login-option-icon">W</div>
+            <div>
+              <div style={{ fontWeight: 700 }}>{isConnecting ? "Connecting wallet..." : "Connect Wallet (MetaMask)"}</div>
+              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.65)" }}>Sign in using your wallet address.</div>
+            </div>
           </button>
         </div>
 
-        <div className="login-legal" style={{ marginTop: 12 }}>
-          <span>By logging in I agree to the </span>
+        <div className="login-legal">
+          <span>By logging in, you agree to our </span>
           <a href="#" onClick={(e) => e.preventDefault()}>
             Terms
           </a>
@@ -257,7 +322,7 @@ export default function LoginPage() {
           </a>
         </div>
 
-        <div className="login-powered" style={{ marginTop: 12 }}>
+        <div className="login-powered">
           <span>Protected by</span>
           <span className="login-powered-pill">privy</span>
         </div>
